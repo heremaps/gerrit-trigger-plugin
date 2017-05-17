@@ -70,7 +70,7 @@ public abstract class GerritMessageProvider implements Serializable, ExtensionPo
      */
     @Deprecated
     public String getBuildStartedMessage(AbstractBuild build) {
-        if (thisOverrides("getBuildStartedMessage", Run.class)) {
+        if (thisOverrides("getBuildsStartedMessage", Run.class)) {
             return getBuildStartedMessage((Run)build);
         }
         return null;
