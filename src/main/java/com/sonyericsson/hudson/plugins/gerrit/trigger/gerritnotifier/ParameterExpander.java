@@ -477,7 +477,7 @@ public class ParameterExpander {
     private List<Run> fromMemoryImprintToBuilds(MemoryImprint memoryImprint) {
         final List<Run> runs = new ArrayList<Run>(memoryImprint.getEntries().length);
         for (Entry entry : memoryImprint.getEntries()) {
-            if (entry == null) {
+            if (entry == null || entry.getBuild() == null) {
                 continue;
             }
             runs.add(entry.getBuild());

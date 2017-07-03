@@ -62,7 +62,8 @@ public class MockGerritHudsonTriggerConfig implements
             + " ENV_CHANGE=$CHANGE"
             + " ENV_PATCHSET=$PATCHSET"
             + " ENV_REFSPEC=$REFSPEC"
-            + " ENV_CHANGEURL=$CHANGE_URL";
+            + " ENV_CHANGEURL=$CHANGE_URL"
+            + " Message\nwith newline";
 
     @Override
     public String getGerritCmdBuildStarted() {

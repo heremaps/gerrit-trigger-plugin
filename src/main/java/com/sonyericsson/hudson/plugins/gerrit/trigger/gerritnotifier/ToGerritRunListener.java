@@ -253,10 +253,7 @@ public final class ToGerritRunListener extends RunListener<Run> {
                     if (delay == 0) {
                         final List<Run> builds = Collections.singletonList(r);
                         NotificationFactory.getInstance().queueBuildsStarted(builds, listener, gerritEvent, stats);
-                    } else if (wasNotifiedBefore(gerritEvent)) {
-                        logger.info("Was notified before. [{}]", gerritEvent);
-                        sendNotification(gerritEvent, listener);
-                    } else if (getNumberOfOngoingBuilds(gerritEvent) == 1) {
+                    } else {
                         logger.info("Schedule notification for [{}].", cause);
                         jenkins.util.Timer.get().schedule(new Runnable() {
                             @Override
@@ -270,21 +267,6 @@ public final class ToGerritRunListener extends RunListener<Run> {
             logger.info("Gerrit build [{}] Started for cause: [{}].", r, cause);
             logger.info("MemoryStatus:\n{}", memory.getStatusReport(gerritEvent));
         }
-    }
-
-    /**
-     * Returns number of builds that are not completed yet.
-     * @param event The event that triggered this build
-     * @return a number of builds that are not completed
-     */
-    public int getNumberOfOngoingBuilds(GerritTriggeredEvent event) {
-        int result = 0;
-        for (Run run : memory.getBuilds(event)) {
-            if (run.isBuilding()) {
-                result++;
-            }
-        }
-        return result;
     }
 
 
@@ -322,26 +304,6 @@ public final class ToGerritRunListener extends RunListener<Run> {
         }
     }
 
-    /**
-     * Did we send notification before
-     * @param event The event that triggered this build
-     * @return true if we already notify at least one build for this even
-     */
-    private synchronized boolean wasNotifiedBefore(GerritTriggeredEvent event) {
-        BuildMemory.MemoryImprint memoryImprint = memory.getMemoryImprint(event);
-
-        if (memoryImprint == null) {
-            logger.info("Gerrit event [{}] was forgotten already. Returns false for notified check", event);
-            return false;
-        }
-
-        for (BuildMemory.MemoryImprint.Entry entry : memoryImprint.getEntries()) {
-            if (!entry.isBuildCompleted() && entry.isNotified()) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     /**
      * Returns time then build must be notified
