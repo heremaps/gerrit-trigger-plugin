@@ -13,9 +13,9 @@ import com.sonymobile.tools.gerrit.gerritevents.dto.attr.Provider;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.ChangeBasedEvent;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.GerritTriggeredEvent;
 import hudson.model.FreeStyleProject;
-import hudson.tasks.Shell;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.CaptureEnvironmentBuilder;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.io.IOException;
@@ -24,6 +24,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -64,8 +65,8 @@ public class IntegrationTest {
         GerritTrigger childTrigger = new GerritTrigger(projectList);
         childTrigger.setDependencyJobsNames(parent.getName());
         FreeStyleProject child = createJobWithGerritTrigger("child", childTrigger, triggerOnEvents);
-        child.getBuildersList().add(new Shell("test \"$DEP_parent_BUILD_NAME\" == \"parent\""));
-
+        CaptureEnvironmentBuilder environmentBuilder = new CaptureEnvironmentBuilder();
+        child.getBuildersList().add(environmentBuilder);
 
         PluginImpl.getInstance().getHandler().notifyListeners(gerritEvent);
 
@@ -73,7 +74,7 @@ public class IntegrationTest {
         waitCompletedBuild(child, TIMEOUT);
 
         jenkinsRule.assertBuildStatusSuccess(parent.getLastCompletedBuild());
-        jenkinsRule.assertBuildStatusSuccess(child.getLastCompletedBuild());
+        assertEquals(environmentBuilder.getEnvVars().get("DEP_parent_BUILD_NAME"), "parent");
     }
 
     /**
