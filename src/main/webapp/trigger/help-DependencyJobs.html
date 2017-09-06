@@ -1,5 +1,5 @@
 <div>
-Insert all jobs on which this job depends.
+Insert all jobs on which this job actually depends (skips triggered in silent mode jobs).
 If a commit should trigger both a dependency and this job, the dependency will be built first.
 Use commas to separate job names. Beware of cyclic dependencies.
 

@@ -191,8 +191,16 @@ public final class DependencyQueueTaskDispatcher extends QueueTaskDispatcher
 
             ToGerritRunListener toGerritRunListener = ToGerritRunListener.getInstance();
             if (toGerritRunListener != null) {
+                List<Run> parentRuns = toGerritRunListener.getRuns(event);
+
+                if (parentRuns == null) {
+                    logger.info("All dependencies on project: {}, are triggered in silent mode. "
+                            + "Can not get list of actual dependencies", p);
+                    return null;
+                }
+
                 List<Run> actualDependencies = new ArrayList<Run>(dependencies.size());
-                for (Run run : toGerritRunListener.getRuns(event)) {
+                for (Run run : parentRuns) {
                     if (dependencies.contains(run.getParent())) {
                         actualDependencies.add(run);
                     }

@@ -256,6 +256,7 @@ public final class ToGerritRunListener extends RunListener<Run> {
      * @param event   the Gerrit Event which is being checked.
      * @return the list of triggered runs for the event.
      */
+    @Nullable
     public List<Run> getRuns(GerritTriggeredEvent event) {
         return memory.getBuilds(event);
     }
