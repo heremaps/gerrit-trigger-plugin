@@ -100,7 +100,6 @@ import java.text.MessageFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -109,6 +108,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.PatternSyntaxException;
 
 import jenkins.model.Jenkins;
@@ -769,7 +769,7 @@ public class GerritTrigger extends Trigger<Job> {
      *
      * @return the store of running jobs.
      */
-    /*package*/ synchronized RunningJobs getRunningJobs() {
+    /*package*/ RunningJobs getRunningJobs() {
         if (runningJobs == null) {
             runningJobs = new RunningJobs();
         }
@@ -2194,8 +2194,8 @@ public class GerritTrigger extends Trigger<Job> {
      * Association between patches and the jobs that we're running for them.
      */
     public class RunningJobs {
-        private final HashMap<GerritTriggeredEvent, ParametersAction> runningJobs =
-                new HashMap<GerritTriggeredEvent, ParametersAction>();
+        private final Map<GerritTriggeredEvent, ParametersAction> runningJobs =
+                new ConcurrentHashMap<GerritTriggeredEvent, ParametersAction>();
 
         /**
          * Does the needful after a build has been scheduled.
@@ -2205,7 +2205,7 @@ public class GerritTrigger extends Trigger<Job> {
          * @param parameters the parameters for the new build, used to find it later.
          * @param projectName the name of the current project for better logging.
          */
-        public synchronized void scheduled(ChangeBasedEvent event, ParametersAction parameters, String projectName) {
+        public void scheduled(ChangeBasedEvent event, ParametersAction parameters, String projectName) {
             IGerritHudsonTriggerConfig serverConfig = getServerConfig(event);
             if (serverConfig == null) {
                 runningJobs.put(event, parameters);
@@ -2344,7 +2344,7 @@ public class GerritTrigger extends Trigger<Job> {
          * @param event the event which started the build we want to remove.
          * @return the build that was removed.
          */
-        public synchronized ParametersAction remove(ChangeBasedEvent event) {
+        public ParametersAction remove(ChangeBasedEvent event) {
             logger.debug("Removing future job " + event.getPatchSet().getNumber());
             return runningJobs.remove(event);
         }
