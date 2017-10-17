@@ -27,7 +27,8 @@ package com.sonyericsson.hudson.plugins.gerrit.trigger.utils;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.GerritServer;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.PluginImpl;
 import com.sonymobile.tools.gerrit.gerritevents.GerritEventListener;
-import com.sonymobile.tools.gerrit.gerritevents.dto.events.ChangeBasedEvent;
+import com.sonymobile.tools.gerrit.gerritevents.dto.attr.Change;
+import com.sonymobile.tools.gerrit.gerritevents.dto.attr.PatchSet;
 import java.util.regex.Pattern;
 
 /**
@@ -71,19 +72,19 @@ public final class StringUtil {
      * Creates a refspec string from the data in the event.
      * Unless the patch-set already has a refspec specified.
      * For a change with number 3456 and patchset 1 the refspec would be refs/changes/56/3456/1
-     * @param event the event.
+     * @param change the change.
+     * @param patchSet the patch set.
      * @return the refspec.
-     * @see ChangeBasedEvent#getPatchSet()
      * @see com.sonymobile.tools.gerrit.gerritevents.dto.attr.PatchSet#getRef()
      */
-    public static String makeRefSpec(ChangeBasedEvent event) {
-        if (event.getPatchSet() != null && event.getPatchSet().getRef() != null) {
-            if (event.getPatchSet().getRef().length() > 0) {
-                return event.getPatchSet().getRef();
+    public static String makeRefSpec(Change change, PatchSet patchSet) {
+        if (patchSet != null && patchSet.getRef() != null) {
+            if (patchSet.getRef().length() > 0) {
+                return patchSet.getRef();
             }
         }
         StringBuilder str = new StringBuilder(REFSPEC_PREFIX);
-        String number = event.getChange().getNumber();
+        String number = change.getNumber();
         if (number.length() < 2) {
             str.append("0").append(number);
         } else if (number.length() == 2) {
@@ -92,7 +93,7 @@ public final class StringUtil {
             str.append(number.substring(number.length() - 2));
         }
         str.append("/").append(number);
-        str.append("/").append(event.getPatchSet().getNumber());
+        str.append("/").append(patchSet.getNumber());
         return str.toString();
     }
 

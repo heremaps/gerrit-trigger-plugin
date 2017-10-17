@@ -38,6 +38,7 @@ import com.sonyericsson.hudson.plugins.gerrit.trigger.mock.DuplicatesUtil;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.mock.Setup;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.mock.TestUtils;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.TopicChanged;
+import com.sonymobile.tools.gerrit.gerritevents.dto.rest.Topic;
 import com.sonymobile.tools.gerrit.gerritevents.mock.SshdServerMock;
 
 import hudson.model.Cause;
@@ -601,13 +602,13 @@ public class SpecGerritTriggerHudsonTest {
         serverMock.waitForCommand(GERRIT_STREAM_EVENTS, 2000);
 
         PatchsetCreated firstEvent = Setup.createPatchsetCreated();
-        firstEvent.getChange().setTopic("abc");
+        firstEvent.getChange().setTopic(new Topic("abc"));
         gerritServer.triggerEvent(firstEvent);
         TestUtils.waitForNonManualBuildToStart(project, firstEvent, 10000);
 
         PatchsetCreated secondEvent = Setup.createPatchsetCreated();
         secondEvent.getPatchSet().setNumber("2");
-        secondEvent.getChange().setTopic("abc");
+        secondEvent.getChange().setTopic(new Topic("abc"));
         gerritServer.triggerEvent(secondEvent);
 
         TestUtils.waitForBuilds(project, 2);
@@ -645,13 +646,13 @@ public class SpecGerritTriggerHudsonTest {
         serverMock.waitForCommand(GERRIT_STREAM_EVENTS, 2000);
 
         PatchsetCreated firstEvent = Setup.createPatchsetCreated();
-        firstEvent.getChange().setTopic("abc");
+        firstEvent.getChange().setTopic(new Topic("abc"));
         gerritServer.triggerEvent(firstEvent);
         TestUtils.waitForNonManualBuildToStart(project, firstEvent, 10000);
 
         TopicChanged secondEvent = Setup.createTopicChanged();
         secondEvent.getPatchSet().setNumber("2");
-        secondEvent.setOldTopic("abc");
+        secondEvent.setOldTopic(new Topic("abc"));
         gerritServer.triggerEvent(secondEvent);
 
         TestUtils.waitForBuilds(project, 2);

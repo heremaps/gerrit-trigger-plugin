@@ -273,7 +273,7 @@ public class GerritProject implements Describable<GerritProject> {
      * @return true if the rules match or no rules.
      */
     private boolean isInterestingTopic(String topic) {
-        if (topics != null && topics.size() > 0) {
+        if (topics != null && !topics.isEmpty()) {
             for (Topic t : topics) {
                 if (t.isInteresting(topic)) {
                     return true;
@@ -291,7 +291,7 @@ public class GerritProject implements Describable<GerritProject> {
      * @return true if the rules match or no rules.
      */
     private boolean isInterestingFile(List<String> files) {
-        if (filePaths != null && filePaths.size() > 0) {
+        if (filePaths != null && !filePaths.isEmpty()) {
             for (FilePath f : filePaths) {
                 if (f.isInteresting(files)) {
                     return true;

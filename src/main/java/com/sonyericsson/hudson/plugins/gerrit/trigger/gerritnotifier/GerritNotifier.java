@@ -110,19 +110,20 @@ public class GerritNotifier {
         try {
             /* Without a change, it doesn't make sense to notify gerrit */
             if (memoryImprint.getEvent() instanceof ChangeBasedEvent) {
-                String command = parameterExpander.getBuildCompletedCommand(memoryImprint, listener);
-
-                if (command != null) {
-                    if (!command.isEmpty()) {
-                        logger.info("Notifying BuildCompleted to gerrit: {}", command);
-                        cmdRunner.sendCommand(command);
-                        GerritTriggeredBuildListener.fireOnCompleted(memoryImprint, command);
+                for (String command : parameterExpander.getBuildCompletedCommands(memoryImprint, listener)) {
+                    if (command != null) {
+                        if (!command.isEmpty()) {
+                            logger.info("Notifying BuildCompleted to gerrit: {}", command);
+                            cmdRunner.sendCommand(command);
+                            GerritTriggeredBuildListener.fireOnCompleted(memoryImprint, command);
+                        } else {
+                            logger.info("BuildCompleted command is empty."
+                                    + " Gerrit will not be notified of BuildCompleted");
+                        }
                     } else {
-                        logger.info("BuildCompleted command is empty.  Gerrit will not be notified of BuildCompleted");
+                        logger.error("Something wrong during parameter extraction. "
+                                + "Gerrit will not be notified of BuildCompleted");
                     }
-                } else {
-                    logger.error("Something wrong during parameter extraction. "
-                            + "Gerrit will not be notified of BuildCompleted");
                 }
             }
         } catch (Exception ex) {
