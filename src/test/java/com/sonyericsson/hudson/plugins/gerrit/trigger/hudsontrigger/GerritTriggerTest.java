@@ -176,7 +176,7 @@ public class GerritTriggerTest {
         patch.setNumber("1");
         event.setPatchset(patch);
         String expResult = StringUtil.REFSPEC_PREFIX + "01/1/1";
-        String result = StringUtil.makeRefSpec(event);
+        String result = StringUtil.makeRefSpec(event.getChange(), event.getPatchSet());
         assertEquals(expResult, result);
     }
 
@@ -194,7 +194,7 @@ public class GerritTriggerTest {
         patch.setNumber("1");
         event.setPatchset(patch);
         String expResult = StringUtil.REFSPEC_PREFIX + "12/12/1";
-        String result = StringUtil.makeRefSpec(event);
+        String result = StringUtil.makeRefSpec(event.getChange(), event.getPatchSet());
         assertEquals(expResult, result);
     }
 
@@ -212,7 +212,7 @@ public class GerritTriggerTest {
         patch.setNumber("1");
         event.setPatchset(patch);
         String expResult = StringUtil.REFSPEC_PREFIX + "23/123/1";
-        String result = StringUtil.makeRefSpec(event);
+        String result = StringUtil.makeRefSpec(event.getChange(), event.getPatchSet());
         assertEquals(expResult, result);
     }
 
@@ -229,7 +229,7 @@ public class GerritTriggerTest {
         patch.setNumber("1");
         event.setPatchset(patch);
         String expResult = StringUtil.REFSPEC_PREFIX + "31/2131/1";
-        String result = StringUtil.makeRefSpec(event);
+        String result = StringUtil.makeRefSpec(event.getChange(), event.getPatchSet());
         assertEquals(expResult, result);
     }
 

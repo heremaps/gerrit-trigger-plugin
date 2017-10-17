@@ -32,25 +32,32 @@ import com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier.model.Build
 import com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier.model.BuildsStartedStats;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.GerritTrigger;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.utils.StringUtil;
+import com.sonymobile.tools.gerrit.gerritevents.GerritQueryHandler;
+import com.sonymobile.tools.gerrit.gerritevents.dto.attr.Change;
+import com.sonymobile.tools.gerrit.gerritevents.dto.attr.PatchSet;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.ChangeBasedEvent;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.GerritTriggeredEvent;
 import com.sonymobile.tools.gerrit.gerritevents.dto.rest.Notify;
 
+import com.sonymobile.tools.gerrit.gerritevents.dto.rest.Topic;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import jenkins.model.Jenkins;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.sonyericsson.hudson.plugins.gerrit.trigger.PluginImpl.getServerConfig;
 import static com.sonyericsson.hudson.plugins.gerrit.trigger.utils.Logic.shouldSkip;
 
 /**
@@ -105,7 +112,7 @@ public class ParameterExpander {
 
         GerritTrigger trigger = GerritTrigger.getTrigger(r.getParent());
         String gerritCmd = config.getGerritCmdBuildStarted();
-        Map<String, String> parameters = createStandardParameters(r, event,
+        Map<String, String> parameters = createStandardParameters(r,
                 getBuildStartedCodeReviewValue(r),
                 getBuildStartedVerifiedValue(r),
                 Notify.ALL.name());
@@ -126,6 +133,8 @@ public class ParameterExpander {
                 }
             }
         }
+
+        addChangeBasedData(event.getChange(), event.getPatchSet(), parameters);
 
         parameters.put("STARTED_STATS", startedStats.toString());
 
@@ -214,39 +223,45 @@ public class ParameterExpander {
      *  <li><strong>NOTIFICATION_LEVEL</strong>: The notification level.</li>
      * </ul>
      * @param r the build.
-     * @param gerritEvent the event.
      * @param codeReview the code review vote.
      * @param verified the verified vote.
      * @param notifyLevel the notify level.
      * @return the parameters and their values.
      */
-    private Map<String, String> createStandardParameters(Run r, GerritTriggeredEvent gerritEvent,
-            Integer codeReview, Integer verified, String notifyLevel) {
+    private Map<String, String> createStandardParameters(Run r, Integer codeReview, Integer verified, String notifyLevel) {
         //<GERRIT_NAME> <BRANCH> <CHANGE> <PATCHSET> <PATCHSET_REVISION> <REFSPEC> <BUILDURL> VERIFIED CODE_REVIEW
         Map<String, String> map = new HashMap<String, String>(DEFAULT_PARAMETERS_COUNT);
-        if (gerritEvent instanceof ChangeBasedEvent) {
-            ChangeBasedEvent event = (ChangeBasedEvent)gerritEvent;
-            map.put("GERRIT_NAME", event.getChange().getProject());
-            map.put("CHANGE_ID", event.getChange().getId());
-            map.put("BRANCH", event.getChange().getBranch());
-            if (null != event.getChange().getTopic()) {
-                map.put("TOPIC", event.getChange().getTopic());
-            }
-            map.put("CHANGE", event.getChange().getNumber());
-            if (null != event.getPatchSet()) {
-                map.put("PATCHSET", event.getPatchSet().getNumber());
-                map.put("PATCHSET_REVISION", event.getPatchSet().getRevision());
-                map.put("REFSPEC", StringUtil.makeRefSpec(event));
-            }
-        }
+
         if (r != null) {
             map.put("BUILDURL", jenkins.getRootUrl() + r.getUrl());
         }
+
         map.put("VERIFIED", String.valueOf(verified));
         map.put("CODE_REVIEW", String.valueOf(codeReview));
         map.put("NOTIFICATION_LEVEL", notifyLevel);
 
         return map;
+    }
+
+    /**
+     * Add change related info to parameters
+     * @param change the change.
+     * @param patchSet the patchset.
+     * @param parameters the input parameters
+     */
+    private void addChangeBasedData(Change change, PatchSet patchSet, Map<String, String> parameters) {
+        parameters.put("GERRIT_NAME", change.getProject());
+        parameters.put("CHANGE_ID", change.getId());
+        parameters.put("BRANCH", change.getBranch());
+        if (null != change.getTopic()) {
+            parameters.put("TOPIC", change.getTopic().getName());
+        }
+        parameters.put("CHANGE", change.getNumber());
+        if (null != patchSet) {
+            parameters.put("PATCHSET", patchSet.getNumber());
+            parameters.put("PATCHSET_REVISION", patchSet.getRevision());
+            parameters.put("REFSPEC", StringUtil.makeRefSpec(change, patchSet));
+        }
     }
 
     /**
@@ -495,13 +510,13 @@ public class ParameterExpander {
     }
 
     /**
-     * Gets the "expanded" build completed command to send to gerrit.
+     * Gets the list of commands to be executed.
      *
-     * @param memoryImprint the memory with all the information
-     * @param listener      the taskListener
-     * @return the command.
+     * @param memoryImprint the memory imprint.
+     * @param listener the listener.
+     * @return list of commands to be executed.
      */
-    public String getBuildCompletedCommand(MemoryImprint memoryImprint, TaskListener listener) {
+    public List<String> getBuildCompletedCommands(MemoryImprint memoryImprint, TaskListener listener) {
         String command;
         // We only count builds without NOT_BUILT status normally. If *no*
         // builds were successful, unstable or failed, we find the minimum
@@ -524,22 +539,92 @@ public class ParameterExpander {
         Integer verified = null;
         Integer codeReview = null;
         Notify notifyLevel = Notify.ALL;
-        if (memoryImprint.getEvent().isScorable()) {
+        GerritTriggeredEvent gerritEvent = memoryImprint.getEvent();
+
+        if (gerritEvent.isScorable()) {
             verified = getMinimumVerifiedValue(memoryImprint, onlyCountBuilt);
             codeReview = getMinimumCodeReviewValue(memoryImprint, onlyCountBuilt);
             notifyLevel = getHighestNotificationLevel(memoryImprint, onlyCountBuilt);
         }
 
-        Map<String, String> parameters = createStandardParameters(null, memoryImprint.getEvent(),
-                codeReview, verified, notifyLevel.name());
+        Map<String, String> parameters = createStandardParameters(null, codeReview, verified, notifyLevel.name());
+
+        if (gerritEvent instanceof ChangeBasedEvent) {
+            return fillOnCompletedParams(memoryImprint, listener, command, parameters);
+        } else {
+            return Collections.singletonList(getBuildCompletedCommand(command,
+                    memoryImprint.getEntries(),
+                    listener,
+                    parameters));
+        }
+    }
+
+    /**
+     * Fill the params.
+     *
+     * @param memoryImprint x.
+     * @param listener x.
+     * @param command x.
+     * @param parameters x.
+     * @return x.
+     */
+    private List<String> fillOnCompletedParams(MemoryImprint memoryImprint,
+                                               TaskListener listener, String command, Map<String, String> parameters) {
+        ChangeBasedEvent changeBasedEvent = (ChangeBasedEvent)memoryImprint.getEvent();
+
+        Topic topic = changeBasedEvent.getChange().getTopic();
+        if (topic != null) {
+            List<String> commands = new ArrayList<String>();
+            GerritQueryHandler gerritQueryHandler = new GerritQueryHandler(getServerConfig(changeBasedEvent));
+
+            for (Map.Entry<Change, PatchSet> pair : topic.getChanges(gerritQueryHandler).entrySet()) {
+                List<Entry> entryList = Arrays.asList(memoryImprint.getEntries());
+                List<Entry> newEntries = new ArrayList<Entry>();
+                for (Entry entry : entryList) {
+                    GerritTrigger gerritTrigger = GerritTrigger.getTrigger(entry.getProject());
+                    if (gerritTrigger == null) {
+                        continue;
+                    }
+
+                    if (gerritTrigger.isInteresting(changeBasedEvent)) {
+                        newEntries.add(entry);
+                    }
+
+                    if (!newEntries.isEmpty()) {
+                        addChangeBasedData(pair.getKey(), pair.getValue(), parameters);
+                        commands.add(getBuildCompletedCommand(command,
+                                (Entry[])newEntries.toArray(), listener, parameters));
+                    }
+                }
+            }
+            return commands;
+        } else {
+            addChangeBasedData(changeBasedEvent.getChange(), changeBasedEvent.getPatchSet(), parameters);
+            return Collections.singletonList(getBuildCompletedCommand(command,
+                    memoryImprint.getEntries(),
+                    listener,
+                    parameters));
+        }
+    }
+
+    /**
+     * Gets the "expanded" build completed command to send to gerrit.
+     *
+     * @param command the command to be expanded.
+     * @param entries the entries.
+     * @param listener      the taskListener
+     * @param parameters the map of build parameteres.
+     * @return the command.
+     */
+    public String getBuildCompletedCommand(String command,
+                                           Entry[] entries, TaskListener listener, Map<String, String> parameters) {
         // escapes ' as '"'"' in order to avoid breaking command line param
         // Details: http://stackoverflow.com/a/26165123/99834
-        parameters.put("BUILDS_STATS", createBuildsStats(memoryImprint,
+        parameters.put("BUILDS_STATS", createBuildsStats(entries,
                                                          listener,
                                                          parameters).replaceAll("'", "'\"'\"'"));
 
         Run build = null;
-        Entry[] entries = memoryImprint.getEntries();
         if (entries.length > 0 && entries[0].getBuild() != null) {
             build = entries[0].getBuild();
         }
@@ -550,19 +635,17 @@ public class ParameterExpander {
     /**
      * Creates the BUILD_STATS string to send in a message,
      * it contains the status of every build with its URL.
-     * @param memoryImprint the memory of all the builds.
+     * @param entries the memory entries for all the builds.
      * @param listener the taskListener
      * @param parameters the &lt;parameters&gt; from the trigger.
      * @return the string.
      */
-    private String createBuildsStats(MemoryImprint memoryImprint, TaskListener listener,
+    private String createBuildsStats(Entry[] entries, TaskListener listener,
             Map<String, String> parameters) {
         StringBuilder str = new StringBuilder("");
         final String rootUrl = jenkins.getRootUrl();
 
         String unsuccessfulMessage = null;
-
-        Entry[] entries = memoryImprint.getEntries();
 
         /* Sort entries with worst results first so the attention is drawn on them.
          * Otherwise users may e.g. miss an UNSTABLE result because they see SUCCESS first.
@@ -661,7 +744,7 @@ public class ParameterExpander {
      * @return the message for the build completed command.
      */
     public String getBuildCompletedMessage(MemoryImprint memoryImprint, TaskListener listener) {
-        String completedCommand = getBuildCompletedCommand(memoryImprint, listener);
+        String completedCommand = getBuildCompletedCommands(memoryImprint, listener).get(0);
         return findMessage(completedCommand);
     }
 
