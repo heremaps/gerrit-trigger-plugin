@@ -201,25 +201,24 @@ public class TriggeredItemEntity {
         }
 
         /**
-         * If this object represents the same build as aBuild.
-         * @param aBuild the build.
+         * If this object represents the same build as specified by parameters.
+         * @param otherBuildNumber build number
+         * @param otherParentName project full name
          * @return true if it is so.
          */
-        public boolean equals(Run aBuild) {
-            if (this.buildNumber != null) {
-                return projectId.equals(aBuild.getParent().getFullName())
-                        && this.buildNumber.equals(aBuild.getNumber());
-            }
-            return false;
+        public boolean isSameBuild(int otherBuildNumber, String otherParentName) {
+            return this.buildNumber != null &&
+                    this.buildNumber == otherBuildNumber &&
+                    projectId.equals(otherParentName);
         }
 
         /**
          * If this object represents the same project as aProject.
-         * @param aProject the project to compare.
+         * @param aProjectFullname the project to compare.
          * @return true if it is so.
          */
-        public boolean equals(Job aProject) {
-            return projectId.equals(aProject.getFullName());
+        public boolean equals(String aProjectFullname) {
+            return projectId.equals(aProjectFullname);
         }
 
         @Override

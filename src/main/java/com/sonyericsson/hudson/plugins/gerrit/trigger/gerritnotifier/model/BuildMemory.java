@@ -36,7 +36,10 @@ import hudson.model.AbstractProject;
 import hudson.model.Job;
 import hudson.model.Result;
 import hudson.model.Run;
+import hudson.security.ACL;
 import jenkins.model.Jenkins;
+import org.acegisecurity.context.SecurityContext;
+import org.acegisecurity.context.SecurityContextHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -341,8 +344,9 @@ public class BuildMemory {
         if (pb == null) {
             return false;
         } else {
+            String fullName = project.getFullName();
             for (Entry entry : pb.getEntries()) {
-                if (entry.isProject(project)) {
+                if (entry.isProject(fullName)) {
                     return true;
                 }
             }
@@ -357,13 +361,14 @@ public class BuildMemory {
      * @param project the project.
      * @return true if so.
      */
-    public synchronized boolean isBuilding(GerritTriggeredEvent event, Job project) {
+    public synchronized boolean isBuilding(GerritTriggeredEvent event, @Nonnull Job project) {
         MemoryImprint pb = memory.get(event);
         if (pb == null) {
             return false;
         } else {
+            String fullName = project.getFullName();
             for (Entry entry : pb.getEntries()) {
-                if (entry.isProject(project)) {
+                if (entry.isProject(fullName)) {
                     if (entry.getBuild() != null) {
                         return !entry.isBuildCompleted();
                     } else {
@@ -894,7 +899,13 @@ public class BuildMemory {
             public Job getProject() {
                 Jenkins jenkins = Jenkins.getInstance();
                 if (jenkins != null) {
-                    return jenkins.getItemByFullName(project, Job.class);
+                    SecurityContext old = ACL.impersonate(ACL.SYSTEM);
+                    try {
+                        return jenkins.getItemByFullName(project, Job.class);
+                    } finally {
+                        SecurityContextHolder.setContext(old);
+                    }
+
                 } else {
                     return null;
                 }
@@ -908,12 +919,14 @@ public class BuildMemory {
             @CheckForNull
             @WithBridgeMethods(AbstractBuild.class)
             public Run getBuild() {
-                Job p = getProject();
-                if (p != null && build != null) {
-                    return p.getBuild(build);
-                } else {
-                    return null;
+                if (build != null && project != null) {
+                    Job p = getProject();
+                    if (p != null) {
+                        return p.getBuild(build);
+                    }
                 }
+
+                return null;
             }
 
             /**
@@ -1057,15 +1070,15 @@ public class BuildMemory {
              * If the provided project is the same as this entry is referencing.
              * It does so by checking the fullName for equality.
              *
-             * @param other the other project to check
+             * @param otherName the other project name to check
              * @return true if so.
              * @see #getProject()
              */
-            public boolean isProject(Job other) {
-                if (this.project != null && other != null) {
-                    return this.project.equals(other.getFullName());
+            public boolean isProject(String otherName) {
+                if (this.project != null && otherName != null) {
+                    return this.project.equals(otherName);
                 } else {
-                    return this.project == null && other == null;
+                    return this.project == null && otherName == null;
                 }
             }
         }
