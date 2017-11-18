@@ -182,10 +182,10 @@ public final class DependencyQueueTaskDispatcher extends QueueTaskDispatcher
         }
 
 
-        List<Job> blockingProjects = getBlockingDependencyProjects(dependencies, event);
+        Job blockingProject = getBlockingDependencyProjects(dependencies, event);
 
-        if (blockingProjects.size() > 0) {
-            return new BecauseDependentBuildIsBuilding(blockingProjects);
+        if (blockingProject != null) {
+            return new BecauseDependentBuildIsBuilding(blockingProject);
         } else {
             logger.info("No active dependencies on project: {} , it will now build", p);
             return null;
@@ -198,19 +198,17 @@ public final class DependencyQueueTaskDispatcher extends QueueTaskDispatcher
      * @param event The event should have also caused the blocking builds.
      * @return the sublist of dependencies which need to be completed before this event is resolved.
      */
-    protected List<Job> getBlockingDependencyProjects(List<Job> dependencies,
-            GerritTriggeredEvent event) {
-        List<Job> blockingProjects = new ArrayList<Job>();
+    private Job getBlockingDependencyProjects(List<Job> dependencies, GerritTriggeredEvent event) {
         ToGerritRunListener toGerritRunListener = ToGerritRunListener.getInstance();
         if (toGerritRunListener != null) {
             for (Job dependency : dependencies) {
                 if (toGerritRunListener.isTriggered(dependency, event)
                         && toGerritRunListener.isBuilding(dependency, event)) {
-                    blockingProjects.add(dependency);
+                    return dependency;
                 }
             }
         }
-        return blockingProjects;
+        return null;
     }
 
     /**
