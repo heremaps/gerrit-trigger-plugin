@@ -614,6 +614,10 @@ public class GerritTrigger extends Trigger<Job> {
 
         // Create a new timer task if there is a URL
         if (dynamicTriggerConfiguration) {
+            if (gerritTriggerTimerTask != null) {
+                logger.info("Cancel old task");
+                gerritTriggerTimerTask.cancel();
+            }
             gerritTriggerTimerTask = new GerritTriggerTimerTask(this);
         }
 
@@ -1716,17 +1720,11 @@ public class GerritTrigger extends Trigger<Job> {
         }
         triggerInformationAction.setErrorMessage("");
         try {
-            if (isAnyServer()) {
-                triggerInformationAction.setErrorMessage("Dynamic trigger configuration needs "
-                        + "a specific configured server");
-            } else {
-                List<GerritProject> fetchedProjects = GerritDynamicUrlProcessor.fetch(triggerConfigURL, serverName);
-                dynamicGerritProjects = fetchedProjects;
-            }
+            dynamicGerritProjects = CacheProxy.getProxy().fetchThroughCache(triggerConfigURL);
         } catch (ParseException pe) {
             String logErrorMessage = MessageFormat.format(
                     "ParseException for project: {0} and URL: {1} Message: {2}",
-                    new Object[]{job.getName(), triggerConfigURL, pe.getMessage()});
+                    job.getName(), triggerConfigURL, pe.getMessage());
             logger.error(logErrorMessage, pe);
             String triggerInformationMessage = MessageFormat.format(
                     "ParseException when fetching dynamic trigger url: {0}", pe.getMessage());
@@ -1734,7 +1732,7 @@ public class GerritTrigger extends Trigger<Job> {
         } catch (MalformedURLException mue) {
             String logErrorMessage = MessageFormat.format(
                     "MalformedURLException for project: {0} and URL: {1} Message: {2}",
-                    new Object[]{job.getName(), triggerConfigURL, mue.getMessage()});
+                    job.getName(), triggerConfigURL, mue.getMessage());
             logger.error(logErrorMessage, mue);
             String triggerInformationMessage = MessageFormat.format(
                     "MalformedURLException when fetching dynamic trigger url: {0}", mue.getMessage());
@@ -1742,7 +1740,7 @@ public class GerritTrigger extends Trigger<Job> {
         } catch (SocketTimeoutException ste) {
             String logErrorMessage = MessageFormat.format(
                     "SocketTimeoutException for project: {0} and URL: {1} Message: {2}",
-                    new Object[]{job.getName(), triggerConfigURL, ste.getMessage()});
+                    job.getName(), triggerConfigURL, ste.getMessage());
             logger.error(logErrorMessage, ste);
             String triggerInformationMessage = MessageFormat.format(
                     "SocketTimeoutException when fetching dynamic trigger url: {0}", ste.getMessage());
@@ -1751,7 +1749,7 @@ public class GerritTrigger extends Trigger<Job> {
         } catch (IOException ioe) {
             String logErrorMessage = MessageFormat.format(
                     "IOException for project: {0} and URL: {1} Message: {2}",
-                    new Object[]{job.getName(), triggerConfigURL, ioe.getMessage()});
+                    job.getName(), triggerConfigURL, ioe.getMessage());
             logger.error(logErrorMessage, ioe);
             String triggerInformationMessage = MessageFormat.format(
                     "IOException when fetching dynamic trigger url: {0}", ioe.getMessage());

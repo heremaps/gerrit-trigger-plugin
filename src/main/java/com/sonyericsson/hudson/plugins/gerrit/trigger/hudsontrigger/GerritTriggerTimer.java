@@ -118,7 +118,7 @@ public final class GerritTriggerTimer {
      *
      * @return the average value.
      */
-    private long calculateAverageDynamicConfigRefreshInterval() {
+    public long calculateAverageDynamicConfigRefreshInterval() {
         long total = 0;
         for (GerritServer server : PluginImpl.getServers_()) {
             total += server.getConfig().getDynamicConfigRefreshInterval();
@@ -137,7 +137,6 @@ public final class GerritTriggerTimer {
         try {
             jenkins.util.Timer.get().scheduleWithFixedDelay(timerTask, DELAY_MILLISECONDS, timerPeriod,
                                                             TimeUnit.MILLISECONDS);
-
         } catch (IllegalArgumentException iae) {
             logger.error("Attempted use of negative delay", iae);
         } catch (IllegalStateException ise) {
