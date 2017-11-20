@@ -632,7 +632,7 @@ public class BuildMemory {
                 }
                 Job project = entry.getProject();
                 if (project != null) {
-                    str.append("  Project/Build: [").append(project.getName()).append("]");
+                    str.append("  Project/Build: [").append(entry.project).append("]");
                     str.append(": [#");
                     Run build = entry.getBuild();
                     if (build != null) {

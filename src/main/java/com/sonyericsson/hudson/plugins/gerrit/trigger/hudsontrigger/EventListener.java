@@ -215,18 +215,18 @@ public final class EventListener implements GerritEventListener {
             }
             if (null != changeBasedEvent.getPatchSet()) {
                 logger.info("Project {} Build Scheduled: {} By event: {}",
-                        new Object[]{project.getName(), (futureBuild != null),
+                        new Object[]{project.getFullName(), (futureBuild != null),
                                 changeBasedEvent.getChange().getNumber() + "/"
                                         + changeBasedEvent.getPatchSet().getNumber(), });
             } else {
                 logger.info("Project {} Build Scheduled: {} By event: {}",
-                        new Object[]{project.getName(), (futureBuild != null),
+                        new Object[]{project.getFullName(), (futureBuild != null),
                                 changeBasedEvent.getChange().getNumber(), });
             }
         } else if (event instanceof RefUpdated) {
             RefUpdated refUpdated = (RefUpdated)event;
             logger.info("Project {} Build Scheduled: {} By event: {}",
-                    new Object[]{project.getName(), (futureBuild != null),
+                    new Object[]{project.getFullName(), (futureBuild != null),
                             refUpdated.getRefUpdate().getRefName() + " " + refUpdated.getRefUpdate().getNewRev(), });
         }
     }

@@ -324,11 +324,21 @@ public final class ToGerritRunListener extends RunListener<Run> {
             ((GerritEventLifecycle)event).fireProjectTriggered(project);
         }
         //Logging
+        String name = getProjectName(project);
+        logger.info("Project [{}] triggered by Gerrit: [{}]", name, event);
+    }
+
+    /**
+     * XXX.
+     * @param project xxx
+     * @return xxx
+     */
+    private String getProjectName(Job project) {
         String name = null;
         if (project != null) {
-            name = project.getName();
+            name = project.getFullName();
         }
-        logger.info("Project [{}] triggered by Gerrit: [{}]", name, event);
+        return name;
     }
 
     /**
@@ -346,10 +356,7 @@ public final class ToGerritRunListener extends RunListener<Run> {
             ((GerritEventLifecycle)event).fireProjectTriggered(project);
         }
         //Logging
-        String name = null;
-        if (project != null) {
-            name = project.getName();
-        }
+        String name = getProjectName(project);
         logger.info("Project [{}] re-triggered by Gerrit-User: [{}]", name, event);
     }
 
