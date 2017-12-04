@@ -201,6 +201,13 @@ public final class DependencyQueueTaskDispatcher extends QueueTaskDispatcher
                 }
 
                 if (parentRuns.isEmpty()) {
+                    for (Job job : dependencies) {
+                        GerritTrigger gerritTrigger = GerritTrigger.getTrigger(job);
+                        if (gerritTrigger != null && gerritTrigger.isInteresting(event)) {
+                            return new BecauseWaitingForOtherProjectsToTrigger();
+                        }
+                    }
+
                     logger.info("Project {} has dependencies, but does not have known runs for {}", p, event);
                 }
 

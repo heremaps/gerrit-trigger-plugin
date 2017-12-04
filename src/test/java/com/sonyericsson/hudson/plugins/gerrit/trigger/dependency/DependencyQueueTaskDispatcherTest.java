@@ -240,6 +240,29 @@ public class DependencyQueueTaskDispatcherTest {
     }
 
     /**
+     * Test that an job is waiting for parent if parent was not triggered, but is interested in event.
+     */
+    @Test
+    public void shouldBlockNonTriggeringButInterestingEvents() {
+        PatchsetCreated patchsetCreated = Setup.createPatchsetCreated("someGerritServer", "someProject",
+                "refs/changes/1/1/1");
+        Queue.Item item = createItem(patchsetCreated, "upstream");
+        GerritTrigger upstreamGerritTriggerMock = mock(GerritTrigger.class);
+        when(abstractProjectDependencyMock.getTriggers()).thenReturn(
+                Collections.<TriggerDescriptor, Trigger<?>>singletonMap(
+                        new GerritTrigger.DescriptorImpl(), upstreamGerritTriggerMock));
+        when(abstractProjectDependencyMock.getTrigger(GerritTrigger.class)).thenReturn(upstreamGerritTriggerMock);
+        when(upstreamGerritTriggerMock.isInteresting(patchsetCreated)).thenReturn(true);
+
+        CauseOfBlockage cause = dispatcher.canRun(item);
+        assertNotNull("Build should be blocked", cause);
+
+        when(toGerritRunListenerMock.getRuns(patchsetCreated)).thenReturn(Collections.singletonList(mock(Run.class)));
+        cause = dispatcher.canRun(item);
+        assertNull("Build should not be blocked", cause);
+    }
+
+    /**
      * Test that child job contains the list of builds it depends on as a StringParameters.
      */
     @Test
@@ -354,12 +377,12 @@ public class DependencyQueueTaskDispatcherTest {
         abstractProjectDependencyMock = mock(AbstractProject.class);
         when(abstractProjectDependencyMock.getTrigger(GerritTrigger.class)).thenReturn(gerritTriggerMock);
         when(gerritTriggerMock.getDependencyJobsNames()).thenReturn(dependency);
-        when(jenkinsMock.getItem(eq("upstream"), any(Item.class), Item.class)).thenReturn(abstractProjectDependencyMock);
+        when(jenkinsMock.getItem(eq(dependency), any(Item.class), Item.class)).thenReturn(abstractProjectDependencyMock);
 
         ItemGroup abstractProjectDependencyMockParent = mock(ItemGroup.class);
         when(abstractProjectDependencyMockParent.getFullName()).thenReturn("");
         when(abstractProjectDependencyMock.getParent()).thenReturn(abstractProjectDependencyMockParent);
-        when(abstractProjectDependencyMock.getName()).thenReturn("upstream");
+        when(abstractProjectDependencyMock.getName()).thenReturn(dependency);
 
         WaitingItem waitingItem = PowerMockito.spy(new WaitingItem(Calendar.getInstance(),
                 abstractProjectMock, actions));
