@@ -82,25 +82,25 @@ public class GerritNotifier {
         try {
             /* Without a change, it doesn't make sense to notify gerrit */
             if (event instanceof ChangeBasedEvent) {
-                String command;
-                if (builds.size() == 1) {
-                    command = parameterExpander.getBuildStartedCommand(builds.get(0), taskListener,
-                            (ChangeBasedEvent)event, stats);
-                } else {
-                    command = parameterExpander.getBuildsStartedCommand(builds, taskListener,
-                            (ChangeBasedEvent)event, stats);
-                }
-                if (command != null) {
-                    if (!command.isEmpty()) {
-                        logger.info("Notifying BuildStarted to gerrit: {}", command);
-                        cmdRunner.sendCommand(command);
-                        GerritTriggeredBuildListener.fireOnStarted(event, command);
+                for (String command : parameterExpander.getBuildsStartedCommand(builds, taskListener,
+                        (ChangeBasedEvent)event, stats)) {
+//                if (builds.size() == 1) {
+//                    command = parameterExpander.getBuildStartedCommand(builds.get(0), taskListener,
+//                            (ChangeBasedEvent)event, stats);
+//                } else {
+//                }
+                    if (command != null) {
+                        if (!command.isEmpty()) {
+                            logger.info("Notifying BuildStarted to gerrit: {}", command);
+                            cmdRunner.sendCommand(command);
+                            GerritTriggeredBuildListener.fireOnStarted(event, command);
+                        } else {
+                            logger.info("BuildStarted command is empty.  Gerrit will not be notified of BuildStarted");
+                        }
                     } else {
-                        logger.info("BuildStarted command is empty.  Gerrit will not be notified of BuildStarted");
+                        logger.error("Something wrong during parameter extraction. "
+                                + "Gerrit will not be notified of BuildStarted");
                     }
-                } else {
-                    logger.error("Something wrong during parameter extraction. "
-                            + "Gerrit will not be notified of BuildStarted");
                 }
             }
         } catch (Exception ex) {
@@ -118,19 +118,21 @@ public class GerritNotifier {
         try {
             /* Without a change, it doesn't make sense to notify gerrit */
             if (memoryImprint.getEvent() instanceof ChangeBasedEvent) {
-                String command = parameterExpander.getBuildCompletedCommand(memoryImprint, listener);
-
-                if (command != null) {
-                    if (!command.isEmpty()) {
-                        logger.info("Notifying BuildCompleted to gerrit: {}", command);
-                        cmdRunner.sendCommand(command);
-                        GerritTriggeredBuildListener.fireOnCompleted(memoryImprint, command);
+                for (String command : parameterExpander.getBuildCompletedCommands(memoryImprint, listener)) {
+                    logger.info("Command to be sent:" + command);
+                    if (command != null) {
+                        if (!command.isEmpty()) {
+                            logger.info("Notifying BuildCompleted to gerrit: {}", command);
+                            cmdRunner.sendCommand(command);
+                            GerritTriggeredBuildListener.fireOnCompleted(memoryImprint, command);
+                        } else {
+                            logger.info("BuildCompleted command is empty."
+                                    + " Gerrit will not be notified of BuildCompleted");
+                        }
                     } else {
-                        logger.info("BuildCompleted command is empty.  Gerrit will not be notified of BuildCompleted");
+                        logger.error("Something wrong during parameter extraction. "
+                                + "Gerrit will not be notified of BuildCompleted");
                     }
-                } else {
-                    logger.error("Something wrong during parameter extraction. "
-                            + "Gerrit will not be notified of BuildCompleted");
                 }
             }
         } catch (Exception ex) {

@@ -40,6 +40,7 @@ import com.sonymobile.tools.gerrit.gerritevents.dto.events.CommentAdded;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.GerritTriggeredEvent;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.RefUpdated;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.TopicChanged;
+import com.sonymobile.tools.gerrit.gerritevents.dto.rest.Topic;
 import hudson.model.Job;
 import hudson.model.ParameterValue;
 import hudson.model.StringParameterValue;
@@ -391,10 +392,11 @@ public enum GerritTriggerParameters {
                 parameters, String.valueOf(((java.lang.Object)gerritEvent).hashCode()), escapeQuotes);
         if (gerritEvent instanceof ChangeBasedEvent) {
             ChangeBasedEvent event = (ChangeBasedEvent)gerritEvent;
+
             GERRIT_BRANCH.setOrCreateStringParameterValue(
                     parameters, event.getChange().getBranch(), escapeQuotes);
             GERRIT_TOPIC.setOrCreateStringParameterValue(
-                    parameters, event.getChange().getTopic(), escapeQuotes);
+                    parameters, getTopicName(event.getChange().getTopic()), escapeQuotes);
             GERRIT_CHANGE_NUMBER.setOrCreateStringParameterValue(
                     parameters, event.getChange().getNumber(), escapeQuotes);
             GERRIT_CHANGE_ID.setOrCreateStringParameterValue(
@@ -407,7 +409,7 @@ public enum GerritTriggerParameters {
                 GERRIT_PATCHSET_REVISION.setOrCreateStringParameterValue(
                         parameters, event.getPatchSet().getRevision(), escapeQuotes);
                 GERRIT_REFSPEC.setOrCreateStringParameterValue(
-                        parameters, StringUtil.makeRefSpec(event), escapeQuotes);
+                        parameters, StringUtil.makeRefSpec(event.getChange(), event.getPatchSet()), escapeQuotes);
             }
             GERRIT_PROJECT.setOrCreateStringParameterValue(
                     parameters, event.getChange().getProject(), escapeQuotes);
@@ -443,7 +445,7 @@ public enum GerritTriggerParameters {
             }
             if (event instanceof TopicChanged) {
                 GERRIT_OLD_TOPIC.setOrCreateStringParameterValue(parameters,
-                        ((TopicChanged)event).getOldTopic(),
+                        getTopicName(((TopicChanged)event).getOldTopic()),
                         escapeQuotes);
                 nameAndEmailParameterMode.setOrCreateParameterValue(GERRIT_TOPIC_CHANGER, parameters,
                         getNameAndEmail(((TopicChanged)event).getChanger()),
@@ -510,6 +512,19 @@ public enum GerritTriggerParameters {
             GERRIT_VERSION.setOrCreateStringParameterValue(
                     parameters, provider.getVersion(), escapeQuotes);
         }
+    }
+
+    /**
+     * Get topic names if it exists, empty line otherwise.
+     * @param topic the topic.
+     * @return topic name.
+     */
+    private static String getTopicName(Topic topic) {
+        if (topic == null) {
+            return "";
+        }
+
+        return topic.getName();
     }
 
     /**

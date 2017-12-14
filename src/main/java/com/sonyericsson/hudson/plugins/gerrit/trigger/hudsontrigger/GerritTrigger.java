@@ -60,7 +60,10 @@ import static jenkins.model.ParameterizedJobMixIn.ParameterizedJob;
 import com.sonymobile.tools.gerrit.gerritevents.GerritHandler;
 import com.sonymobile.tools.gerrit.gerritevents.GerritQueryHandler;
 import com.sonymobile.tools.gerrit.gerritevents.dto.attr.Approval;
+import com.sonymobile.tools.gerrit.gerritevents.dto.attr.Change;
+import com.sonymobile.tools.gerrit.gerritevents.dto.attr.PatchSet;
 import com.sonymobile.tools.gerrit.gerritevents.dto.attr.Provider;
+import com.sonymobile.tools.gerrit.gerritevents.dto.attr.RefUpdate;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.ChangeBasedEvent;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.CommentAdded;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.GerritTriggeredEvent;
@@ -68,6 +71,7 @@ import com.sonymobile.tools.gerrit.gerritevents.dto.events.RefUpdated;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.TopicChanged;
 import com.sonymobile.tools.gerrit.gerritevents.dto.rest.Notify;
 
+import com.sonymobile.tools.gerrit.gerritevents.dto.rest.Topic;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.Util;
@@ -114,6 +118,7 @@ import java.util.regex.PatternSyntaxException;
 
 import jenkins.model.Jenkins;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -956,6 +961,46 @@ public class GerritTrigger extends Trigger<Job> {
         if (!shouldTriggerOnEventType(event)) {
             return false;
         }
+
+        if (!isServerInteresting(event)) {
+            return false;
+        }
+
+        //logger.trace("entering isInteresting projects configured: {} the event: {}", allGerritProjects.size(), event);
+        GerritQueryHandler gerritQueryHandler = new GerritQueryHandler(getServerConfig(event));
+
+        if (event instanceof ChangeBasedEvent) {
+            List<Change> changes = getChanges((ChangeBasedEvent)event, gerritQueryHandler);
+            for (Change change : changes) {
+                if (isInterestingChange(change, gerritQueryHandler)) {
+                    return true;
+                }
+            }
+        } else if (event instanceof RefUpdated) {
+            RefUpdate refUpdate = ((RefUpdated)event).getRefUpdate();
+            List<GerritProject> allGerritProjects = getAllGerritProjects();
+            for (GerritProject p : allGerritProjects) {
+                try {
+                    if (p.isInteresting(refUpdate.getProject(), refUpdate.getRefName(), null)) {
+                        logger.trace("According to {} the event is interesting.", p);
+                        return true;
+                    }
+                } catch (PatternSyntaxException pse) {
+                    logger.error(MessageFormat.format("Exception caught for project {0} and pattern {1}, message: {2}",
+                            job.getName(), p.getPattern(), pse.getMessage()));
+                }
+            }
+
+        }
+        logger.trace("Nothing interesting here, move along folks!");
+        return false;
+    }
+
+    /**
+     * x.
+     * @return x.
+     */
+    private List<GerritProject> getAllGerritProjects() {
         List<GerritProject> allGerritProjects = new LinkedList<GerritProject>();
         if (gerritProjects != null) {
             allGerritProjects.addAll(gerritProjects);
@@ -963,50 +1008,57 @@ public class GerritTrigger extends Trigger<Job> {
         if (dynamicGerritProjects != null) {
             allGerritProjects.addAll(dynamicGerritProjects);
         }
-        logger.trace("entering isInteresting projects configured: {} the event: {}", allGerritProjects.size(), event);
+        return allGerritProjects;
+    }
 
-        for (GerritProject p : allGerritProjects) {
+    /**
+     * x.
+     * @param event x.
+     * @param gerritQueryHandler x.
+     * @return x.
+     */
+    private List<Change> getChanges(ChangeBasedEvent event, GerritQueryHandler gerritQueryHandler) {
+        Topic topic = event.getChange().getTopic();
+        List<Change> changes;
+        if (topic != null) {
+            Map<Change, PatchSet> topicChanges = topic.getChanges(gerritQueryHandler);
+            changes = new ArrayList<Change>(topicChanges.keySet());
+        } else {
+            changes = Collections.singletonList(event.getChange());
+        }
+        return changes;
+    }
+
+    /**
+     * Should we trigger on this ChangeBasedEvent event?
+     * @param change the gerrit change.
+     * @param gerritQueryHandler the handler to retrieve topic changes and files.
+     * @return true if should.
+     */
+    public boolean isInterestingChange(Change change, GerritQueryHandler gerritQueryHandler) {
+        for (GerritProject p : getAllGerritProjects()) {
+            String topicName = change.getTopicName();
             try {
-                if (event instanceof ChangeBasedEvent) {
-                    ChangeBasedEvent changeBasedEvent = (ChangeBasedEvent)event;
-                    if (isServerInteresting(event)
-                         && p.isInteresting(changeBasedEvent.getChange().getProject(),
-                                            changeBasedEvent.getChange().getBranch(),
-                                            changeBasedEvent.getChange().getTopic())) {
+                if (p.isInteresting(change.getProject(), change.getBranch(), topicName)) {
+                    boolean containsFilePathsOrForbiddenFilePaths = !CollectionUtils.isEmpty(p.getFilePaths())
+                            || !CollectionUtils.isEmpty(p.getForbiddenFilePaths());
 
-                        boolean containsFilePathsOrForbiddenFilePaths =
-                                ((p.getFilePaths() != null && p.getFilePaths().size() > 0)
-                                        || (p.getForbiddenFilePaths() != null && p.getForbiddenFilePaths().size() > 0));
-
-                        if (isFileTriggerEnabled() && containsFilePathsOrForbiddenFilePaths) {
-                            if (isServerInteresting(event)
-                                 && p.isInteresting(changeBasedEvent.getChange().getProject(),
-                                                    changeBasedEvent.getChange().getBranch(),
-                                                    changeBasedEvent.getChange().getTopic(),
-                                                    changeBasedEvent.getFiles(
-                                                        new GerritQueryHandler(getServerConfig(event))))) {
-                                logger.trace("According to {} the event is interesting.", p);
-                                return true;
-                            }
-                        } else {
-                            logger.trace("According to {} the event is interesting.", p);
+                    if (isFileTriggerEnabled() && containsFilePathsOrForbiddenFilePaths) {
+                        List<String> files = change.getFiles(gerritQueryHandler);
+                        if (p.isInteresting(change.getProject(), change.getBranch(), topicName, files)) {
+                            logger.info("According to {} the event is interesting.", p);
                             return true;
                         }
-                    }
-                } else if (event instanceof RefUpdated) {
-                    RefUpdated refUpdated = (RefUpdated)event;
-                    if (isServerInteresting(event) && p.isInteresting(refUpdated.getRefUpdate().getProject(),
-                                                                      refUpdated.getRefUpdate().getRefName(), null)) {
-                        logger.trace("According to {} the event is interesting.", p);
+                    } else {
+                        logger.info("According to {} the event is interesting.", p);
                         return true;
                     }
                 }
             } catch (PatternSyntaxException pse) {
                 logger.error(MessageFormat.format("Exception caught for project {0} and pattern {1}, message: {2}",
-                       new Object[]{job.getName(), p.getPattern(), pse.getMessage()}));
+                        job.getName(), p.getPattern(), pse.getMessage()));
             }
         }
-        logger.trace("Nothing interesting here, move along folks!");
         return false;
     }
 
@@ -2383,15 +2435,14 @@ public class GerritTrigger extends Trigger<Job> {
     private boolean abortBecauseOfTopic(ChangeBasedEvent event,
                                         BuildCancellationPolicy policy,
                                         ChangeBasedEvent runningChange) {
-        String topicName = event.getChange().getTopic();
+        Topic topic = event.getChange().getTopic();
 
         if (event instanceof TopicChanged) {
-            topicName = ((TopicChanged)event).getOldTopic();
+            topic = ((TopicChanged)event).getOldTopic();
         }
 
         return policy.isAbortSameTopic()
-                && topicName != null
-                && !topicName.isEmpty()
-                && topicName.equals(runningChange.getChange().getTopic());
+                && topic != null
+                && topic.equals(runningChange.getChange().getTopic());
     }
 }
