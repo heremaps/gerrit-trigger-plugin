@@ -27,7 +27,6 @@ package com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier;
 
 import com.sonyericsson.hudson.plugins.gerrit.trigger.config.Config;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.config.IGerritHudsonTriggerConfig;
-import com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier.model.BuildMemory;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier.model.BuildMemory.MemoryImprint;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier.model.BuildMemory.MemoryImprint.Entry;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier.model.BuildsStartedStats;
@@ -157,7 +156,7 @@ public class ParameterExpander {
 
         GerritQueryHandler queryHandler = new GerritQueryHandler(getServerConfig(event));
 
-        Topic topic = event.getChange().getTopic();
+        Topic topic = event.getChange().getTopicObject();
         Map<Change, PatchSet> topicChanges;
         if (topic != null) {
             topicChanges = topic.getChanges(queryHandler);
@@ -211,16 +210,18 @@ public class ParameterExpander {
                 }
             }
 
-            Map<String, String> parameters = createStandardParameters(null,
-                    minCodeReview,
-                    minVerified,
-                    Notify.ALL.name());
+            if (aggregatedBuilds.length() != 0) {
+                Map<String, String> parameters = createStandardParameters(null,
+                        minCodeReview,
+                        minVerified,
+                        Notify.ALL.name());
 
-            parameters.put("BUILDURL", "");
-            parameters.put("STARTED_STATS", aggregatedBuilds.toString());
-            addChangeBasedData(changePatchSetEntry.getKey(), changePatchSetEntry.getValue(), parameters);
+                parameters.put("BUILDURL", "");
+                parameters.put("STARTED_STATS", aggregatedBuilds.toString());
+                addChangeBasedData(changePatchSetEntry.getKey(), changePatchSetEntry.getValue(), parameters);
 
-            commands.add(expandParameters(gerritCmd, runs.get(0), taskListener, parameters));
+                commands.add(expandParameters(gerritCmd, runs.get(0), taskListener, parameters));
+            }
         }
 
         return commands;
@@ -342,7 +343,7 @@ public class ParameterExpander {
         parameters.put("CHANGE_ID", change.getId());
         parameters.put("BRANCH", change.getBranch());
         if (null != change.getTopic()) {
-            parameters.put("TOPIC", change.getTopic().getName());
+            parameters.put("TOPIC", change.getTopic());
         }
         parameters.put("CHANGE", change.getNumber());
         if (null != patchSet) {
@@ -657,14 +658,6 @@ public class ParameterExpander {
         Notify notifyLevel = Notify.ALL;
         GerritTriggeredEvent gerritEvent = memoryImprint.getEvent();
 
-//        List<Entry> entryList;
-//        if (gerritEvent instanceof ChangeBasedEvent) {
-//            entryList = filterInterestingEntries(memoryImprint.getEntries(), ((ChangeBasedEvent) gerritEvent).getChange(), new GerritQueryHandler(getServerConfig(gerritEvent)));
-//        } else {
-//            entryList = Arrays.asList(memoryImprint.getEntries());
-//        }
-
-
         if (gerritEvent.isScorable()) {
             verified = getMinimumVerifiedValue(memoryImprint, onlyCountBuilt);
             codeReview = getMinimumCodeReviewValue(memoryImprint, onlyCountBuilt);
@@ -674,11 +667,8 @@ public class ParameterExpander {
         Map<String, String> parameters = createStandardParameters(null, codeReview, verified, notifyLevel.name());
 
         if (gerritEvent instanceof ChangeBasedEvent) {
-            List<String> cmds = fillOnCompletedParams(memoryImprint, listener, command, parameters);
-            logger.info("YYY" + cmds.size());
-            return cmds;
+            return fillOnCompletedParams(memoryImprint, listener, command, parameters);
         } else {
-            logger.info("XXX");
             return Collections.singletonList(getBuildCompletedCommand(command,
                     memoryImprint.getEntries(),
                     listener,
@@ -699,7 +689,7 @@ public class ParameterExpander {
                                                TaskListener listener, String command, Map<String, String> parameters) {
         ChangeBasedEvent changeBasedEvent = (ChangeBasedEvent)memoryImprint.getEvent();
 
-        Topic topic = changeBasedEvent.getChange().getTopic();
+        Topic topic = changeBasedEvent.getChange().getTopicObject();
         if (topic != null) {
             List<String> commands = new ArrayList<String>();
             GerritQueryHandler queryHandler = new GerritQueryHandler(getServerConfig(changeBasedEvent));
@@ -745,6 +735,13 @@ public class ParameterExpander {
         return newEntries;
     }
 
+    /**
+     * xxx.
+     * @param change x.
+     * @param project x.
+     * @param gerritQueryHandler x.
+     * @return x.
+     */
     private boolean isInterestingProject(Change change, Job project, GerritQueryHandler gerritQueryHandler) {
         GerritTrigger gerritTrigger = GerritTrigger.getTrigger(project);
         if (gerritTrigger == null) {

@@ -651,7 +651,7 @@ public class SpecGerritTriggerHudsonTest {
 
         TopicChanged secondEvent = Setup.createTopicChanged();
         secondEvent.getPatchSet().setNumber("2");
-        secondEvent.setOldTopic(new Topic("abc"));
+        secondEvent.setOldTopic("abc");
         gerritServer.triggerEvent(secondEvent);
 
         TestUtils.waitForBuilds(project, 2);

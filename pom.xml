@@ -70,7 +70,7 @@
         <dependency>
             <groupId>com.sonymobile.tools.gerrit</groupId>
             <artifactId>gerrit-events</artifactId>
-            <version>2.11.2-SNAPSHOT-ALEX-12.10</version>
+            <version>2.11.2-SNAPSHOT-ALEX-17.01</version>
             <!-- New source is here: https://github.com/sonyxperiadev/gerrit-events -->
         </dependency>
         <dependency>

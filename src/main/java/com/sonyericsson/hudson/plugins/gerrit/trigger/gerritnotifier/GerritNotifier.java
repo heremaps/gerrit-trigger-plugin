@@ -95,7 +95,7 @@ public class GerritNotifier {
                             cmdRunner.sendCommand(command);
                             GerritTriggeredBuildListener.fireOnStarted(event, command);
                         } else {
-                            logger.info("BuildStarted command is empty.  Gerrit will not be notified of BuildStarted");
+                            logger.info("BuildStarted command is empty. Gerrit will not be notified of BuildStarted");
                         }
                     } else {
                         logger.error("Something wrong during parameter extraction. "

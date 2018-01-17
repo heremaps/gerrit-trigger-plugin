@@ -319,7 +319,7 @@ public final class Setup {
         patch.setRevision("9999");
         event.setPatchset(patch);
         Account changer = new Account("Name1", "email@domain1.com");
-        event.setOldTopic(new Topic("old-topic"));
+        event.setOldTopic("old-topic");
         event.setChanger(changer);
         event.setProvider(new Provider(PluginImpl.DEFAULT_SERVER_NAME, "gerrit", "29418", "ssh", "http://gerrit/", "1"));
         event.setEventCreatedOn("1418133772");

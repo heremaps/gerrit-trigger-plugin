@@ -80,7 +80,7 @@ public class BuildCompletedRestCommandJob extends AbstractRestCommandJob {
     protected ReviewInput createReview() {
         SecurityContext old = ACL.impersonate(ACL.SYSTEM);
         try {
-            String message = "Alex from CCI broke it"; //parameterExpander.getBuildCompletedMessage(memoryImprint, listener);
+            String message = parameterExpander.getBuildCompletedMessage(memoryImprint, listener).get(0); // FIXME BUG!!!
             Collection<ReviewLabel> scoredLabels = new ArrayList<ReviewLabel>();
             if (memoryImprint.getEvent().isScorable()) {
                 if (config.isRestCodeReview()) {

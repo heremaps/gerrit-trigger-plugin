@@ -596,7 +596,6 @@ public class BuildMemory {
                 Entry entry = iterator.next();
                 if (entry.isProject(project)) {
                     iterator.remove();
-                    return;
                 }
             }
         }

@@ -24,6 +24,7 @@
  */
 package com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger;
 
+import com.google.common.collect.Iterators;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.GerritServer;
 
 import static com.sonyericsson.hudson.plugins.gerrit.trigger.GerritServer.ANY_SERVER;
@@ -978,8 +979,9 @@ public class GerritTrigger extends Trigger<Job> {
             }
         } else if (event instanceof RefUpdated) {
             RefUpdate refUpdate = ((RefUpdated)event).getRefUpdate();
-            List<GerritProject> allGerritProjects = getAllGerritProjects();
-            for (GerritProject p : allGerritProjects) {
+            Iterator<GerritProject> allGerritProjects = getAllGerritProjectsIterator();
+            while (allGerritProjects.hasNext()) {
+                GerritProject p = allGerritProjects.next();
                 try {
                     if (p.isInteresting(refUpdate.getProject(), refUpdate.getRefName(), null)) {
                         logger.trace("According to {} the event is interesting.", p);
@@ -1000,15 +1002,20 @@ public class GerritTrigger extends Trigger<Job> {
      * x.
      * @return x.
      */
-    private List<GerritProject> getAllGerritProjects() {
-        List<GerritProject> allGerritProjects = new LinkedList<GerritProject>();
+    private Iterator<GerritProject> getAllGerritProjectsIterator() {
+        if (gerritProjects != null && dynamicGerritProjects != null) {
+            return Iterators.concat(gerritProjects.iterator(), dynamicGerritProjects.iterator());
+        }
+
+        if (gerritProjects == null && dynamicGerritProjects != null) {
+            return dynamicGerritProjects.iterator();
+        }
+
         if (gerritProjects != null) {
-            allGerritProjects.addAll(gerritProjects);
+            return gerritProjects.iterator();
         }
-        if (dynamicGerritProjects != null) {
-            allGerritProjects.addAll(dynamicGerritProjects);
-        }
-        return allGerritProjects;
+
+        return Iterators.emptyIterator();
     }
 
     /**
@@ -1018,7 +1025,7 @@ public class GerritTrigger extends Trigger<Job> {
      * @return x.
      */
     private List<Change> getChanges(ChangeBasedEvent event, GerritQueryHandler gerritQueryHandler) {
-        Topic topic = event.getChange().getTopic();
+        Topic topic = event.getChange().getTopicObject();
         List<Change> changes;
         if (topic != null) {
             Map<Change, PatchSet> topicChanges = topic.getChanges(gerritQueryHandler);
@@ -1036,8 +1043,10 @@ public class GerritTrigger extends Trigger<Job> {
      * @return true if should.
      */
     public boolean isInterestingChange(Change change, GerritQueryHandler gerritQueryHandler) {
-        for (GerritProject p : getAllGerritProjects()) {
-            String topicName = change.getTopicName();
+        Iterator<GerritProject> allGerritProjects = getAllGerritProjectsIterator();
+        while (allGerritProjects.hasNext()) {
+            GerritProject p = allGerritProjects.next();
+            String topicName = change.getTopic();
             try {
                 if (p.isInteresting(change.getProject(), change.getBranch(), topicName)) {
                     boolean containsFilePathsOrForbiddenFilePaths = !CollectionUtils.isEmpty(p.getFilePaths())
@@ -1046,11 +1055,11 @@ public class GerritTrigger extends Trigger<Job> {
                     if (isFileTriggerEnabled() && containsFilePathsOrForbiddenFilePaths) {
                         List<String> files = change.getFiles(gerritQueryHandler);
                         if (p.isInteresting(change.getProject(), change.getBranch(), topicName, files)) {
-                            logger.info("According to {} the event is interesting.", p);
+                            logger.trace("According to {} the event is interesting.", p);
                             return true;
                         }
                     } else {
-                        logger.info("According to {} the event is interesting.", p);
+                        logger.trace("According to {} the event is interesting.", p);
                         return true;
                     }
                 }
@@ -1137,7 +1146,11 @@ public class GerritTrigger extends Trigger<Job> {
      * @return the rule-set.
      */
     public List<GerritProject> getGerritProjects() {
-        return gerritProjects;
+        if (gerritProjects == null) {
+            return null;
+        }
+
+        return Collections.unmodifiableList(gerritProjects);
     }
 
     /**
@@ -1146,7 +1159,10 @@ public class GerritTrigger extends Trigger<Job> {
      *  @return the rule-set.
      */
     public List<GerritProject> getDynamicGerritProjects() {
-        return dynamicGerritProjects;
+        if (dynamicGerritProjects == null) {
+            return null;
+        }
+        return Collections.unmodifiableList(dynamicGerritProjects);
     }
 
     /**
@@ -2435,14 +2451,14 @@ public class GerritTrigger extends Trigger<Job> {
     private boolean abortBecauseOfTopic(ChangeBasedEvent event,
                                         BuildCancellationPolicy policy,
                                         ChangeBasedEvent runningChange) {
-        Topic topic = event.getChange().getTopic();
+        Topic topic = event.getChange().getTopicObject();
 
         if (event instanceof TopicChanged) {
-            topic = ((TopicChanged)event).getOldTopic();
+            topic = ((TopicChanged)event).getOldTopicObject();
         }
 
         return policy.isAbortSameTopic()
                 && topic != null
-                && topic.equals(runningChange.getChange().getTopic());
+                && topic.equals(runningChange.getChange().getTopicObject());
     }
 }

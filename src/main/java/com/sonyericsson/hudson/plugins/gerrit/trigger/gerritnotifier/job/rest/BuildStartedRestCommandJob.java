@@ -73,7 +73,8 @@ public class BuildStartedRestCommandJob extends AbstractRestCommandJob {
      */
     @Override
     protected ReviewInput createReview() {
-        String message = "Alex from CCI broke it";//parameterExpander.getBuildsStartedMessage(builds, listener, event, stats);
+        // FIXME BUG!!!
+        String message = parameterExpander.getBuildsStartedMessage(builds, listener, event, stats).get(0);
         Notify notificationLevel = parameterExpander.getHighestNotificationLevel(builds, false);
         return new ReviewInput(message).setNotify(notificationLevel);
     }

@@ -36,8 +36,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 
-import jenkins.model.Jenkins;
-import org.apache.commons.collections.CollectionUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
