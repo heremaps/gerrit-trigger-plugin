@@ -46,13 +46,16 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
 
+import jenkins.util.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import jenkins.model.Jenkins;
@@ -75,6 +78,7 @@ public final class ToGerritRunListener extends RunListener<Run> {
     public static final int ORDINAL = 10003;
     private static final Logger logger = LoggerFactory.getLogger(ToGerritRunListener.class);
     private final transient BuildMemory memory = new BuildMemory();
+    private final transient HashMap<GerritTriggeredEvent, ScheduledFuture> aggregationFutures = new HashMap<GerritTriggeredEvent, ScheduledFuture>();
 
     /**
      * Returns the registered instance of this class from the list of all listeners.
@@ -198,6 +202,11 @@ public final class ToGerritRunListener extends RunListener<Run> {
                 NotificationFactory.getInstance().queueBuildCompleted(memory.getMemoryImprint(event), listener);
             } finally {
                 memory.forget(event);
+
+                if (aggregationFutures.containsKey(event)) {
+                    logger.info("Cancel notification task for [{}].", cause);
+                    aggregationFutures.remove(event).cancel(false);
+                }
             }
         } else {
             logger.info("Waiting for more builds to complete for cause [{}]. Status: \n{}",
@@ -253,19 +262,30 @@ public final class ToGerritRunListener extends RunListener<Run> {
                     if (delay == 0) {
                         final List<Run> builds = Collections.singletonList(r);
                         NotificationFactory.getInstance().queueBuildsStarted(builds, listener, gerritEvent, stats);
+                        logger.info("MemoryStatus:\n{}", memory.getStatusReport(gerritEvent));
                     } else {
-                        logger.info("Schedule notification for [{}].", cause);
-                        jenkins.util.Timer.get().schedule(new Runnable() {
-                            @Override
-                            public void run() {
-                                sendNotification(gerritEvent, listener);
-                            }
-                        }, delay, TimeUnit.SECONDS);
+                        handleAggregation(listener, cause, delay);
                     }
                 }
             }
             logger.info("Gerrit build [{}] Started for cause: [{}].", r, cause);
-            logger.info("MemoryStatus:\n{}", memory.getStatusReport(gerritEvent));
+        }
+    }
+
+    private void handleAggregation(final TaskListener listener, GerritCause cause, long delay) {
+        final GerritTriggeredEvent gerritEvent = cause.getEvent();
+
+        if (!aggregationFutures.containsKey(gerritEvent)) {
+            logger.info("Start notification task for [{}].", cause);
+            Runnable notifyCommand = new Runnable() {
+                @Override
+                public void run() {
+                    sendNotification(gerritEvent, listener);
+                }
+            };
+
+            aggregationFutures.put(gerritEvent,
+                    Timer.get().scheduleAtFixedRate(notifyCommand, 1, delay, TimeUnit.SECONDS));
         }
     }
 
@@ -299,8 +319,7 @@ public final class ToGerritRunListener extends RunListener<Run> {
             final BuildsStartedStats stats = memory.getBuildsStartedStats(event);
             NotificationFactory.getInstance().queueBuildsStarted(buildsToNotify, listener, event, stats);
             logger.info("queue notification [{}] for [{}]", event, buildsToNotify);
-        } else {
-            logger.info("Nothing to notify for [{}]", event);
+            logger.info("MemoryStatus:\n{}", memory.getStatusReport(event));
         }
     }
 
