@@ -51,6 +51,7 @@ import jenkins.model.Jenkins;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier.helpers.EntriesHelper.getWorstResult;
 import static com.sonyericsson.hudson.plugins.gerrit.trigger.utils.Logic.shouldSkip;
 
 /**
@@ -367,14 +368,14 @@ public class ParameterExpander {
     /**
      * Returns the minimum verified value for the build results in the memory.
      * If no builds have contributed to verified value, this method returns null
-     * @param memoryImprint the memory.
+     * @param entries the entries.
      * @param onlyBuilt only count builds that completed (no NOT_BUILT builds)
      * @return the lowest verified value.
      */
     @CheckForNull
-    public Integer getMinimumVerifiedValue(MemoryImprint memoryImprint, boolean onlyBuilt) {
+    public Integer getMinimumVerifiedValue(Entry[] entries, boolean onlyBuilt) {
         Integer verified = Integer.MAX_VALUE;
-        for (Entry entry : memoryImprint.getEntries()) {
+        for (Entry entry : entries) {
             if (entry == null) {
                 continue;
             }
@@ -407,14 +408,14 @@ public class ParameterExpander {
     /**
      * Returns the minimum code review value for the build results in the memory.
      * If no builds have contributed to code review value, this method returns null
-     * @param memoryImprint the memory
+     * @param entries the entries.
      * @param onlyBuilt only count builds that completed (no NOT_BUILT builds)
      * @return the lowest code review value.
      */
     @CheckForNull
-    public Integer getMinimumCodeReviewValue(MemoryImprint memoryImprint, boolean onlyBuilt) {
+    public Integer getMinimumCodeReviewValue(Entry[] entries, boolean onlyBuilt) {
         Integer codeReview = Integer.MAX_VALUE;
-        for (Entry entry : memoryImprint.getEntries()) {
+        for (Entry entry : entries) {
             Run build = entry.getBuild();
             if (build == null) {
                 continue;
@@ -444,13 +445,13 @@ public class ParameterExpander {
     /**
      * Returns the highest configured notification level.
      *
-     * @param memoryImprint the memory
+     * @param entries the entries.
      * @param onlyBuilt only count builds that completed (no NOT_BUILT builds)
      * @return the highest configured notification level.
      */
-    public Notify getHighestNotificationLevel(MemoryImprint memoryImprint, boolean onlyBuilt) {
+    public Notify getHighestNotificationLevel(Entry[] entries, boolean onlyBuilt) {
         Notify highestLevel = Notify.NONE;
-        for (Entry entry : memoryImprint.getEntries()) {
+        for (Entry entry : entries) {
             if (entry == null) {
                 continue;
             }
@@ -507,13 +508,15 @@ public class ParameterExpander {
         // builds were successful, unstable or failed, we find the minimum
         // verified/code review value for the NOT_BUILT ones too.
         boolean onlyCountBuilt = true;
-        if (memoryImprint.wereAllBuildsSuccessful()) {
+        Entry[] entries = memoryImprint.getEntries();
+        Result worstResult = getWorstResult(entries);
+        if (worstResult.equals(Result.SUCCESS)) {
             command = config.getGerritCmdBuildSuccessful();
-        } else if (memoryImprint.wereAnyBuildsFailed()) {
-            command = config.getGerritCmdBuildFailed();
-        } else if (memoryImprint.wereAnyBuildsUnstable()) {
+        } else if (worstResult.equals(Result.UNSTABLE)) {
             command = config.getGerritCmdBuildUnstable();
-        } else if (memoryImprint.wereAllBuildsNotBuilt()) {
+        } else if (worstResult.equals(Result.FAILURE)) {
+            command = config.getGerritCmdBuildFailed();
+        } else if (worstResult.equals(Result.NOT_BUILT)) {
             onlyCountBuilt = false;
             command = config.getGerritCmdBuildNotBuilt();
         } else {
@@ -525,21 +528,20 @@ public class ParameterExpander {
         Integer codeReview = null;
         Notify notifyLevel = Notify.ALL;
         if (memoryImprint.getEvent().isScorable()) {
-            verified = getMinimumVerifiedValue(memoryImprint, onlyCountBuilt);
-            codeReview = getMinimumCodeReviewValue(memoryImprint, onlyCountBuilt);
-            notifyLevel = getHighestNotificationLevel(memoryImprint, onlyCountBuilt);
+            verified = getMinimumVerifiedValue(entries, onlyCountBuilt);
+            codeReview = getMinimumCodeReviewValue(entries, onlyCountBuilt);
+            notifyLevel = getHighestNotificationLevel(entries, onlyCountBuilt);
         }
 
         Map<String, String> parameters = createStandardParameters(null, memoryImprint.getEvent(),
                 codeReview, verified, notifyLevel.name());
         // escapes ' as '"'"' in order to avoid breaking command line param
         // Details: http://stackoverflow.com/a/26165123/99834
-        parameters.put("BUILDS_STATS", createBuildsStats(memoryImprint,
+        parameters.put("BUILDS_STATS", createBuildsStats(entries,
                                                          listener,
                                                          parameters).replaceAll("'", "'\"'\"'"));
 
         Run build = null;
-        Entry[] entries = memoryImprint.getEntries();
         if (entries.length > 0 && entries[0].getBuild() != null) {
             build = entries[0].getBuild();
         }
@@ -550,19 +552,17 @@ public class ParameterExpander {
     /**
      * Creates the BUILD_STATS string to send in a message,
      * it contains the status of every build with its URL.
-     * @param memoryImprint the memory of all the builds.
+     * @param entries the entries.
      * @param listener the taskListener
      * @param parameters the &lt;parameters&gt; from the trigger.
      * @return the string.
      */
-    private String createBuildsStats(MemoryImprint memoryImprint, TaskListener listener,
+    private String createBuildsStats(Entry[] entries, TaskListener listener,
             Map<String, String> parameters) {
         StringBuilder str = new StringBuilder("");
         final String rootUrl = jenkins.getRootUrl();
 
         String unsuccessfulMessage = null;
-
-        Entry[] entries = memoryImprint.getEntries();
 
         /* Sort entries with worst results first so the attention is drawn on them.
          * Otherwise users may e.g. miss an UNSTABLE result because they see SUCCESS first.

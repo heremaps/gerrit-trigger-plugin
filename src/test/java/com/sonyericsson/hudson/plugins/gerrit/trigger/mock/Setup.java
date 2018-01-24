@@ -733,6 +733,7 @@ public final class Setup {
         MemoryImprint.Entry entry = mock(MemoryImprint.Entry.class);
         when(entry.getBuild()).thenReturn(build);
         when(entry.getProject()).thenReturn(project);
+        when(entry.isBuildCompleted()).thenReturn(true);
         return entry;
     }
 
