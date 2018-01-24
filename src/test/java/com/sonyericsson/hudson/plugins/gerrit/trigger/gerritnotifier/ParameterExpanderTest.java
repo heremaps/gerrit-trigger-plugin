@@ -246,16 +246,14 @@ public class ParameterExpanderTest {
         when(trigger.getGerritBuildNotBuiltVerifiedValue()).thenReturn(-4);
         entries[3] = Setup.createAndSetupMemoryImprintEntry(trigger, Result.NOT_BUILT);
 
-        when(memoryImprint.getEntries()).thenReturn(entries);
-
         // When not all results are NOT_BUILT, we should ignore NOT_BUILT.
         int expResult = -1;
-        int result = instance.getMinimumVerifiedValue(memoryImprint, true);
+        int result = instance.getMinimumVerifiedValue(entries, true);
         assertEquals(expResult, result);
 
         // Otherwise, we should use NOT_BUILT.
         expResult = -4;
-        result = instance.getMinimumVerifiedValue(memoryImprint, false);
+        result = instance.getMinimumVerifiedValue(entries, false);
         assertEquals(expResult, result);
     }
 
@@ -286,14 +284,12 @@ public class ParameterExpanderTest {
         when(trigger.getGerritBuildNotBuiltCodeReviewValue()).thenReturn(-4);
         entries[3] = Setup.createAndSetupMemoryImprintEntry(trigger, Result.NOT_BUILT);
 
-        when(memoryImprint.getEntries()).thenReturn(entries);
-
         // When not all results are NOT_BUILT, we should ignore NOT_BUILT.
-        Integer result = instance.getMinimumCodeReviewValue(memoryImprint, true);
+        Integer result = instance.getMinimumCodeReviewValue(entries, true);
         assertEquals(Integer.valueOf(-1), result);
 
         // Otherwise, we should use NOT_BUILT.
-        result = instance.getMinimumCodeReviewValue(memoryImprint, false);
+        result = instance.getMinimumCodeReviewValue(entries, false);
         assertEquals(Integer.valueOf(-4), result);
     }
 
@@ -326,9 +322,7 @@ public class ParameterExpanderTest {
         entries[2] = Setup.createAndSetupMemoryImprintEntry(trigger, Result.SUCCESS);
 
 
-        when(memoryImprint.getEntries()).thenReturn(entries);
-
-        Integer result = instance.getMinimumCodeReviewValue(memoryImprint, true);
+        Integer result = instance.getMinimumCodeReviewValue(entries, true);
         assertEquals(Integer.valueOf(1), result);
     }
 
@@ -352,9 +346,7 @@ public class ParameterExpanderTest {
         when(trigger.getSkipVote()).thenReturn(skipVote);
         entries[0] = Setup.createAndSetupMemoryImprintEntry(trigger, Result.SUCCESS);
 
-        when(memoryImprint.getEntries()).thenReturn(entries);
-
-        Integer result = instance.getMinimumCodeReviewValue(memoryImprint, true);
+        Integer result = instance.getMinimumCodeReviewValue(entries, true);
         assertEquals(null, result);
     }
 
@@ -380,11 +372,9 @@ public class ParameterExpanderTest {
         when(trigger.getGerritBuildSuccessfulCodeReviewValue()).thenReturn(2);
         entries[1] = Setup.createAndSetupMemoryImprintEntry(trigger, Result.SUCCESS);
 
-        when(memoryImprint.getEntries()).thenReturn(entries);
-
         // Since one job has overriden CR value, it is the only one inspected
         // and therefore the only one that contributes.
-        Integer result = instance.getMinimumCodeReviewValue(memoryImprint, false);
+        Integer result = instance.getMinimumCodeReviewValue(entries, false);
         assertEquals(Integer.valueOf(2), result);
     }
 
@@ -410,11 +400,9 @@ public class ParameterExpanderTest {
         when(trigger.getGerritBuildFailedCodeReviewValue()).thenReturn(-2);
         entries[1] = Setup.createAndSetupMemoryImprintEntry(trigger, Result.FAILURE);
 
-        when(memoryImprint.getEntries()).thenReturn(entries);
-
         // Since one job has overriden CR value, it is the only one inspected
         // and therefore the only one that contributes.
-        Integer result = instance.getMinimumCodeReviewValue(memoryImprint, false);
+        Integer result = instance.getMinimumCodeReviewValue(entries, false);
         assertEquals(Integer.valueOf(-2), result);
     }
 
@@ -440,11 +428,9 @@ public class ParameterExpanderTest {
         when(trigger.getGerritBuildSuccessfulCodeReviewValue()).thenReturn(2);
         entries[1] = Setup.createAndSetupMemoryImprintEntry(trigger, Result.SUCCESS);
 
-        when(memoryImprint.getEntries()).thenReturn(entries);
-
         // Since one job has overriden CR value, it is the only one inspected
         // and therefore the only one that contributes.
-        Integer result = instance.getMinimumCodeReviewValue(memoryImprint, false);
+        Integer result = instance.getMinimumCodeReviewValue(entries, false);
         assertEquals(Integer.valueOf(2), result);
     }
 

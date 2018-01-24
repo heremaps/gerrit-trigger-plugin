@@ -46,8 +46,6 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 //CS IGNORE MagicNumber FOR NEXT 200 LINES. REASON: TestData.
 
@@ -91,7 +89,7 @@ public class ParameterExpanderSkipVoteParameterTest {
     public void testCodeReview() {
         IGerritHudsonTriggerConfig config = Setup.createConfig();
         ParameterExpander instance = new ParameterExpander(config);
-        Integer result = instance.getMinimumCodeReviewValue(parameter.memoryImprint, true);
+        Integer result = instance.getMinimumCodeReviewValue(parameter.entries, true);
         if (parameter.expectedCodeReview == null) {
             assertNull(result);
         } else {
@@ -107,7 +105,7 @@ public class ParameterExpanderSkipVoteParameterTest {
     public void testVerified() {
         IGerritHudsonTriggerConfig config = Setup.createConfig();
         ParameterExpander instance = new ParameterExpander(config);
-        Integer result = instance.getMinimumVerifiedValue(parameter.memoryImprint, true);
+        Integer result = instance.getMinimumVerifiedValue(parameter.entries, true);
         if (parameter.expectedVerified == null) {
             assertNull(result);
         } else {
@@ -192,9 +190,9 @@ public class ParameterExpanderSkipVoteParameterTest {
      */
     public static class TestParameter {
 
-        BuildMemory.MemoryImprint memoryImprint;
         private Integer expectedCodeReview;
         private Integer expectedVerified;
+        private BuildMemory.MemoryImprint.Entry[] entries;
 
         /**
          * Convenience constructor.
@@ -207,8 +205,7 @@ public class ParameterExpanderSkipVoteParameterTest {
                 BuildMemory.MemoryImprint.Entry... entries) {
             this.expectedCodeReview = expectedCodeReview;
             this.expectedVerified = expectedVerified;
-            memoryImprint = mock(BuildMemory.MemoryImprint.class);
-            when(memoryImprint.getEntries()).thenReturn(entries);
+            this.entries = entries;
         }
     }
 }
