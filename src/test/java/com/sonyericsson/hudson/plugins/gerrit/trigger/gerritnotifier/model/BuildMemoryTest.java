@@ -599,7 +599,7 @@ public class BuildMemoryTest {
      * Tests a scenario when two builds are successful and one is unstable, but the unstable build is
      * configured to be skipped.
      * Expected outcome is that
-     * {@link BuildMemory.MemoryImprint#wereAllBuildsSuccessful()} will return true.
+     * {@link BuildMemory.MemoryImprint#getWorstResult()} will return Result.SUCCESS.
      */
     @Test
     public void testWereAllBuildsSuccessfulOneUnstableSkipped() {
@@ -639,7 +639,7 @@ public class BuildMemoryTest {
         instance.completed(event, build2);
         instance.completed(event, build3);
 
-        assertTrue(instance.getMemoryImprint(event).wereAllBuildsSuccessful());
+        assertEquals(Result.SUCCESS, instance.getMemoryImprint(event).getWorstResult());
 
     }
 
@@ -647,7 +647,7 @@ public class BuildMemoryTest {
      * Tests a scenario when two builds are successful and one is failed, but the failed build is
      * configured to be skipped.
      * Expected outcome is that
-     * {@link BuildMemory.MemoryImprint#wereAllBuildsSuccessful()} will return true.
+     * {@link BuildMemory.MemoryImprint#getWorstResult()} will return Result.SUCCESS.
      */
     @Test
     public void testWereAllBuildsSuccessfulOneFailedSkipped() {
@@ -687,7 +687,7 @@ public class BuildMemoryTest {
         instance.completed(event, build2);
         instance.completed(event, build3);
 
-        assertTrue(instance.getMemoryImprint(event).wereAllBuildsSuccessful());
+        assertEquals(Result.SUCCESS, instance.getMemoryImprint(event).getWorstResult());
 
     }
 
@@ -695,7 +695,7 @@ public class BuildMemoryTest {
      * Tests a scenario when one build is successful, one is failed, and one is unstable,
      * but the failed and unstable builds are configured to be skipped.
      * Expected outcome is that
-     * {@link BuildMemory.MemoryImprint#wereAllBuildsSuccessful()} will return true.
+     * {@link BuildMemory.MemoryImprint#getWorstResult()} will return Result.SUCCESS.
      */
     @Test
     public void testWereAllBuildsSuccessfulOneUnstableOneFailedBothSkippedOneSuccessful() {
@@ -735,7 +735,7 @@ public class BuildMemoryTest {
         instance.completed(event, build2);
         instance.completed(event, build3);
 
-        assertTrue(instance.getMemoryImprint(event).wereAllBuildsSuccessful());
+        assertEquals(Result.SUCCESS, instance.getMemoryImprint(event).getWorstResult());
 
     }
 
@@ -743,8 +743,7 @@ public class BuildMemoryTest {
      * Tests a scenario when two builds are unstable and one is successful, the successful build is
      * configured to be skipped.
      * Expected outcome is that
-     * {@link BuildMemory.MemoryImprint#wereAllBuildsSuccessful()} will return false and
-     * {@link BuildMemory.MemoryImprint#wereAnyBuildsUnstable()} will return true.
+     * {@link BuildMemory.MemoryImprint#getWorstResult()} will return Result.UNSTABLE.
      * As before the skip vote feature was implemented.
      */
     @Test
@@ -785,9 +784,7 @@ public class BuildMemoryTest {
         instance.completed(event, build2);
         instance.completed(event, build3);
 
-        MemoryImprint memoryImprint = instance.getMemoryImprint(event);
-        assertFalse(memoryImprint.wereAllBuildsSuccessful());
-        assertTrue(memoryImprint.wereAnyBuildsUnstable());
+        assertEquals(Result.UNSTABLE, instance.getMemoryImprint(event).getWorstResult());
 
     }
 
@@ -795,8 +792,7 @@ public class BuildMemoryTest {
      * Tests a scenario when two builds are successful and one is unstable, one of the successful builds is
      * configured to be skipped.
      * Expected outcome is that
-     * {@link BuildMemory.MemoryImprint#wereAllBuildsSuccessful()} will return false and
-     * {@link BuildMemory.MemoryImprint#wereAnyBuildsUnstable()} will return true.
+     * {@link BuildMemory.MemoryImprint#getWorstResult()} will return Result.UNSTABLE.
      * As before the skip vote feature was implemented.
      */
     @Test
@@ -837,15 +833,14 @@ public class BuildMemoryTest {
         instance.completed(event, build2);
         instance.completed(event, build3);
 
-        MemoryImprint memoryImprint = instance.getMemoryImprint(event);
-        assertFalse(memoryImprint.wereAllBuildsSuccessful());
-        assertTrue(memoryImprint.wereAnyBuildsUnstable());
+        assertEquals(Result.UNSTABLE, instance.getMemoryImprint(event).getWorstResult());
+
     }
 
     /**
      * Tests a scenario when one build is successful and configured to be skipped.
      * Expected outcome is that
-     * {@link BuildMemory.MemoryImprint#wereAllBuildsSuccessful()} will return true
+     * {@link BuildMemory.MemoryImprint#getWorstResult()} will return Result.SUCCESS.
      * As before the skip vote feature was implemented.
      */
     @Test
@@ -863,15 +858,13 @@ public class BuildMemoryTest {
 
         instance.completed(event, build);
 
-        MemoryImprint memoryImprint = instance.getMemoryImprint(event);
-        assertTrue(memoryImprint.wereAllBuildsSuccessful());
+        assertEquals(Result.SUCCESS, instance.getMemoryImprint(event).getWorstResult());
     }
 
     /**
      * Tests a scenario when one build is unstable and configured to be skipped.
      * Expected outcome is that
-     * {@link BuildMemory.MemoryImprint#wereAllBuildsSuccessful()} will return false and
-     * {@link BuildMemory.MemoryImprint#wereAnyBuildsUnstable()} will return true.
+     * {@link BuildMemory.MemoryImprint#getWorstResult()} will return Result.UNSTABLE.
      * As before the skip vote feature was implemented.
      */
     @Test
@@ -889,16 +882,13 @@ public class BuildMemoryTest {
 
         instance.completed(event, build);
 
-        MemoryImprint memoryImprint = instance.getMemoryImprint(event);
-        assertFalse(memoryImprint.wereAllBuildsSuccessful());
-        assertTrue(memoryImprint.wereAnyBuildsUnstable());
+        assertEquals(Result.UNSTABLE, instance.getMemoryImprint(event).getWorstResult());
     }
 
     /**
      * Tests a scenario when two builds are unstable and both configured to be skipped.
      * Expected outcome is that
-     * {@link BuildMemory.MemoryImprint#wereAllBuildsSuccessful()} will return false and
-     * {@link BuildMemory.MemoryImprint#wereAnyBuildsUnstable()} will return true.
+     * {@link BuildMemory.MemoryImprint#getWorstResult()} will return Result.UNSTABLE.
      * As before the skip vote feature was implemented.
      */
     @Test
@@ -928,15 +918,13 @@ public class BuildMemoryTest {
         instance.completed(event, build1);
         instance.completed(event, build2);
 
-        MemoryImprint memoryImprint = instance.getMemoryImprint(event);
-        assertFalse(memoryImprint.wereAllBuildsSuccessful());
-        assertTrue(memoryImprint.wereAnyBuildsUnstable());
+        assertEquals(Result.UNSTABLE, instance.getMemoryImprint(event).getWorstResult());
     }
 
     /**
      * Tests a scenario when two builds are successful and both configured to be skipped.
      * Expected outcome is that
-     * {@link BuildMemory.MemoryImprint#wereAllBuildsSuccessful()} will return true.
+     * {@link BuildMemory.MemoryImprint#getWorstResult()} will return Result.SUCCESS.
      * As before the skip vote feature was implemented.
      */
     @Test
@@ -966,7 +954,6 @@ public class BuildMemoryTest {
         instance.completed(event, build1);
         instance.completed(event, build2);
 
-        MemoryImprint memoryImprint = instance.getMemoryImprint(event);
-        assertTrue(memoryImprint.wereAllBuildsSuccessful());
+        assertEquals(Result.SUCCESS, instance.getMemoryImprint(event).getWorstResult());
     }
 }

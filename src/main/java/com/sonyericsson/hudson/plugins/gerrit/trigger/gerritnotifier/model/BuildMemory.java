@@ -718,7 +718,7 @@ public class BuildMemory {
          * If all entry's results are configured to be skipped.
          *
          * @return true if so.
-         * @see #wereAllBuildsSuccessful()
+         * @see #getWorstResult()
          */
         public synchronized boolean areAllBuildResultsSkipped() {
             for (Entry entry : list) {
@@ -740,116 +740,37 @@ public class BuildMemory {
             return true;
         }
 
+
         /**
-         * Tells if all builds in the memory were successful.
+         * Returns the worst result from the list of entities.
+         * If entity is null, it will be skipped
+         * If project is null, or build is null, or build is still ongoing,
+         * it will be considered as Result.FAILURE
          *
-         * @return true if it is so, false if not all builds have started or not completed or have any different result
-         *         than {@link Result#SUCCESS}.
+         * @return the worst result.
          */
-        public synchronized boolean wereAllBuildsSuccessful() {
-            if (areAllBuildResultsSkipped()) {
-                for (Entry entry : list) {
-                    if (entry == null) {
-                        continue;
-                    }
+        public synchronized Result getWorstResult() {
+            // First implementation of skipVote feature did not skip vote if all jobs were marked as "skip vote"
+            boolean doNotSkipVotes = areAllBuildResultsSkipped();
+
+            Result worstResult = Result.SUCCESS;
+            for (Entry entry : list) {
+                if (entry != null) {
                     Run build = entry.getBuild();
-                    if (build == null) {
-                        return false;
-                    } else if (!entry.isBuildCompleted()) {
-                        return false;
-                    }
-                    Result buildResult = build.getResult();
-                    if (buildResult != Result.SUCCESS) {
-                        return false;
-                    }
-                }
-            } else {
-                for (Entry entry : list) {
-                    if (entry == null) {
-                        continue;
-                    }
-                    Run build = entry.getBuild();
-                    if (build == null) {
-                        return false;
-                    } else if (!entry.isBuildCompleted()) {
-                        return false;
-                    }
-                    Result buildResult = build.getResult();
-                    if (buildResult != Result.SUCCESS) {
+                    if (build != null && entry.isBuildCompleted() && build.getResult() != null) {
                         GerritTrigger trigger = GerritTrigger.getTrigger(entry.getProject());
-                        if (!shouldSkip(trigger.getSkipVote(), buildResult)) {
-                            return false;
+                        boolean respectVote = trigger != null && !shouldSkip(trigger.getSkipVote(), build.getResult());
+                        if (doNotSkipVotes || respectVote) {
+                            if (build.getResult().isWorseThan(worstResult)) {
+                                worstResult = build.getResult();
+                            }
                         }
+                    } else {
+                        return Result.FAILURE;
                     }
                 }
             }
-            return true;
-        }
-
-        /**
-         * Returns if any started and completed build has the result {@link Result#FAILURE}.
-         *
-         * @return true if it is so.
-         */
-        public synchronized boolean wereAnyBuildsFailed() {
-            for (Entry entry : list) {
-                if (entry == null) {
-                    continue;
-                }
-                Run build = entry.getBuild();
-                if (build != null && entry.isBuildCompleted()
-                        && build.getResult() == Result.FAILURE) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Returns if any started and completed build has the result {@link Result#UNSTABLE}.
-         *
-         * @return true if it is so.
-         */
-        public synchronized boolean wereAnyBuildsUnstable() {
-            for (Entry entry : list) {
-                if (entry == null) {
-                    continue;
-                }
-                Run build = entry.getBuild();
-                if (build != null && entry.isBuildCompleted()
-                        && build.getResult() == Result.UNSTABLE) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Tells if all builds in the memory were not built.
-         *
-         * @return true if it is so, false if not all builds have started or not completed or have any different result
-         *         than {@link Result#NOT_BUILT}.
-         */
-        public synchronized boolean wereAllBuildsNotBuilt() {
-            for (Entry entry : list) {
-                if (entry == null) {
-                    continue;
-                }
-                if (entry.isCancelled()) {
-                    continue;
-                }
-                Run build = entry.getBuild();
-                if (build == null) {
-                    return false;
-                } else if (!entry.isBuildCompleted()) {
-                    return false;
-                }
-                Result buildResult = build.getResult();
-                if (buildResult != Result.NOT_BUILT) {
-                    return false;
-                }
-            }
-            return true;
+            return worstResult;
         }
 
         //CS IGNORE FinalClass FOR NEXT 5 LINES. REASON: Testability.

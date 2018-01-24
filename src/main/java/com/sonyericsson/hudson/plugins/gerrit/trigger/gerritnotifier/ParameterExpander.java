@@ -639,19 +639,20 @@ public class ParameterExpander {
         // builds were successful, unstable or failed, we find the minimum
         // verified/code review value for the NOT_BUILT ones too.
         boolean onlyCountBuilt = true;
-//        if (memoryImprint.wereAllBuildsSuccessful()) {
-//            command = config.getGerritCmdBuildSuccessful();
-//        } else if (memoryImprint.wereAnyBuildsFailed()) {
-//            command = config.getGerritCmdBuildFailed();
-//        } else if (memoryImprint.wereAnyBuildsUnstable()) {
-//            command = config.getGerritCmdBuildUnstable();
-//        } else if (memoryImprint.wereAllBuildsNotBuilt()) {
-//            onlyCountBuilt = false;
-//            command = config.getGerritCmdBuildNotBuilt();
-//        } else {
-//            //Just as bad as failed for now.
-//            command = config.getGerritCmdBuildFailed();
-//        }
+        Result worstResult = memoryImprint.getWorstResult();
+        if (worstResult.equals(Result.SUCCESS)) {
+            command = config.getGerritCmdBuildSuccessful();
+        } else if (worstResult.equals(Result.UNSTABLE)) {
+            command = config.getGerritCmdBuildUnstable();
+        } else if (worstResult.equals(Result.FAILURE)) {
+            command = config.getGerritCmdBuildFailed();
+        } else if (worstResult.equals(Result.NOT_BUILT)) {
+            onlyCountBuilt = false;
+            command = config.getGerritCmdBuildNotBuilt();
+        } else {
+            //Just as bad as failed for now.
+            command = config.getGerritCmdBuildFailed();
+        }
 
         Integer verified = null;
         Integer codeReview = null;
@@ -659,26 +660,6 @@ public class ParameterExpander {
         GerritTriggeredEvent gerritEvent = memoryImprint.getEvent();
 
         Entry[] entries = memoryImprint.getEntries();
-
-        Result worstResult = getWorstResult(entries);
-        switch (worstResult.ordinal) {
-            case 0:
-                command = config.getGerritCmdBuildSuccessful();
-                break;
-            case 1:
-                command = config.getGerritCmdBuildFailed();
-                break;
-            case 2:
-                command = config.getGerritCmdBuildUnstable();
-                break;
-            case 3:
-                command = config.getGerritCmdBuildNotBuilt();
-                onlyCountBuilt = false;
-                break;
-            default:
-                command = config.getGerritCmdBuildFailed();
-                break;
-        }
 
         if (gerritEvent.isScorable()) {
             verified = getMinimumVerifiedValue(entries, onlyCountBuilt);
@@ -696,26 +677,6 @@ public class ParameterExpander {
                     listener,
                     parameters));
         }
-    }
-
-    public Result getWorstResult(Entry[] entries) {
-        Result worstResult = Result.SUCCESS;
-        for(Entry entry : entries) {
-            if (entry != null) {
-                Run build = entry.getBuild();
-                if (build != null && entry.isBuildCompleted() && build.getResult() != null) {
-                    GerritTrigger trigger = GerritTrigger.getTrigger(entry.getProject());
-                    if (trigger != null && !shouldSkip(trigger.getSkipVote(), build.getResult())) {
-                        if (build.getResult().isWorseThan(worstResult)) {
-                            worstResult = build.getResult();
-                        }
-                    }
-                } else {
-                    return Result.FAILURE;
-                }
-            }
-        }
-        return worstResult;
     }
 
     /**
