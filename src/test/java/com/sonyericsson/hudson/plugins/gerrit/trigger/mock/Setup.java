@@ -52,7 +52,6 @@ import com.sonymobile.tools.gerrit.gerritevents.dto.events.PatchsetCreated;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.RefReplicated;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.RefUpdated;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.TopicChanged;
-import com.sonymobile.tools.gerrit.gerritevents.dto.rest.Topic;
 import hudson.EnvVars;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
@@ -312,7 +311,7 @@ public final class Setup {
         change.setProject("project");
         change.setSubject("subject");
         change.setUrl("http://gerrit/1000");
-        change.setTopic(new Topic("new-topic"));
+        change.setTopic("new-topic");
         event.setChange(change);
         PatchSet patch = new PatchSet();
         patch.setNumber("1");
@@ -734,6 +733,7 @@ public final class Setup {
         MemoryImprint.Entry entry = mock(MemoryImprint.Entry.class);
         when(entry.getBuild()).thenReturn(build);
         when(entry.getProject()).thenReturn(project);
+        when(entry.isBuildCompleted()).thenReturn(true);
         return entry;
     }
 

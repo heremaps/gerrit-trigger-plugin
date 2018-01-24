@@ -82,9 +82,10 @@ public class BuildCompletedRestCommandJob extends AbstractRestCommandJob {
         try {
             String message = parameterExpander.getBuildCompletedMessage(memoryImprint, listener).get(0); // FIXME BUG!!!
             Collection<ReviewLabel> scoredLabels = new ArrayList<ReviewLabel>();
+            BuildMemory.MemoryImprint.Entry[] entries = memoryImprint.getEntries();
             if (memoryImprint.getEvent().isScorable()) {
                 if (config.isRestCodeReview()) {
-                    Integer crValue = parameterExpander.getMinimumCodeReviewValue(memoryImprint, true);
+                    Integer crValue = parameterExpander.getMinimumCodeReviewValue(entries, true);
                     if (crValue != null && crValue != Integer.MAX_VALUE) {
                         scoredLabels.add(new ReviewLabel(
                                 LABEL_CODEREVIEW,
@@ -92,7 +93,7 @@ public class BuildCompletedRestCommandJob extends AbstractRestCommandJob {
                     }
                 }
                 if (config.isRestVerified()) {
-                    Integer verValue = parameterExpander.getMinimumVerifiedValue(memoryImprint, true);
+                    Integer verValue = parameterExpander.getMinimumVerifiedValue(entries, true);
                     if (verValue != null && verValue != Integer.MAX_VALUE) {
                         scoredLabels.add(new ReviewLabel(
                                 LABEL_VERIFIED,
@@ -100,12 +101,12 @@ public class BuildCompletedRestCommandJob extends AbstractRestCommandJob {
                     }
                 }
             }
-            Notify notificationLevel = parameterExpander.getHighestNotificationLevel(memoryImprint, true);
+            Notify notificationLevel = parameterExpander.getHighestNotificationLevel(entries, true);
             List<GerritMessageProvider> gerritMessageProviders = GerritMessageProvider.all();
             Collection<CommentedFile> commentedFiles = new ArrayList<CommentedFile>();
             if (gerritMessageProviders != null) {
                 for (GerritMessageProvider gerritMessageProvider : gerritMessageProviders) {
-                    for (BuildMemory.MemoryImprint.Entry e : memoryImprint.getEntries()) {
+                    for (BuildMemory.MemoryImprint.Entry e : entries) {
                         try {
                             commentedFiles.addAll(gerritMessageProvider.getFileComments(e.getBuild()));
                         } catch (Exception ef) {

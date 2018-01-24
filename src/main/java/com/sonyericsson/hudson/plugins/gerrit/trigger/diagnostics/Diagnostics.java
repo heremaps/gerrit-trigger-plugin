@@ -34,7 +34,6 @@ import com.sonymobile.tools.gerrit.gerritevents.dto.GerritChangeKind;
 import com.sonymobile.tools.gerrit.gerritevents.dto.attr.Account;
 import com.sonymobile.tools.gerrit.gerritevents.dto.attr.Change;
 import com.sonymobile.tools.gerrit.gerritevents.dto.attr.PatchSet;
-import com.sonymobile.tools.gerrit.gerritevents.dto.rest.Topic;
 import hudson.Main;
 import hudson.security.Permission;
 import jenkins.model.Jenkins;
@@ -198,7 +197,7 @@ public class Diagnostics implements ModelObjectWithChildren, ModelObjectWithCont
         change.setId("I" + UUID.randomUUID().toString().replace("-", ""));
         change.setLastUpdated(new Date());
         change.setProject("debug/project");
-        change.setTopic(new Topic("debug"));
+        change.setTopic("debug");
         change.setNumber(String.valueOf(RND.nextInt(10001)));
         change.setUrl("http://gerrit/" + change.getNumber());
         event.setChange(change);

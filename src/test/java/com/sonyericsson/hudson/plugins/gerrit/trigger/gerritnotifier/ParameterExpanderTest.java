@@ -250,12 +250,12 @@ public class ParameterExpanderTest {
 
         // When not all results are NOT_BUILT, we should ignore NOT_BUILT.
         int expResult = -1;
-        int result = instance.getMinimumVerifiedValue(memoryImprint, true);
+        int result = instance.getMinimumVerifiedValue(entries, true);
         assertEquals(expResult, result);
 
         // Otherwise, we should use NOT_BUILT.
         expResult = -4;
-        result = instance.getMinimumVerifiedValue(memoryImprint, false);
+        result = instance.getMinimumVerifiedValue(entries, false);
         assertEquals(expResult, result);
     }
 
@@ -267,7 +267,6 @@ public class ParameterExpanderTest {
         IGerritHudsonTriggerConfig config = Setup.createConfig();
 
         ParameterExpander instance = new ParameterExpander(config, jenkins);
-        MemoryImprint memoryImprint = mock(MemoryImprint.class);
         MemoryImprint.Entry[] entries = new MemoryImprint.Entry[4];
 
         GerritTrigger trigger = mock(GerritTrigger.class);
@@ -286,19 +285,17 @@ public class ParameterExpanderTest {
         when(trigger.getGerritBuildNotBuiltCodeReviewValue()).thenReturn(-4);
         entries[3] = Setup.createAndSetupMemoryImprintEntry(trigger, Result.NOT_BUILT);
 
-        when(memoryImprint.getEntries()).thenReturn(entries);
-
         // When not all results are NOT_BUILT, we should ignore NOT_BUILT.
-        Integer result = instance.getMinimumCodeReviewValue(memoryImprint, true);
+        Integer result = instance.getMinimumCodeReviewValue(entries, true);
         assertEquals(Integer.valueOf(-1), result);
 
         // Otherwise, we should use NOT_BUILT.
-        result = instance.getMinimumCodeReviewValue(memoryImprint, false);
+        result = instance.getMinimumCodeReviewValue(entries, false);
         assertEquals(Integer.valueOf(-4), result);
     }
 
     /**
-     * Tests {@link ParameterExpander#getMinimumCodeReviewValue(MemoryImprint, boolean)} with one
+     * Tests {@link ParameterExpander#getMinimumCodeReviewValue(MemoryImprint.Entry[], boolean)} with one
      * unstable build vote skipped.
      *
      * @see com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.GerritTrigger#getSkipVote()
@@ -325,15 +322,12 @@ public class ParameterExpanderTest {
         when(trigger.getGerritBuildSuccessfulCodeReviewValue()).thenReturn(2);
         entries[2] = Setup.createAndSetupMemoryImprintEntry(trigger, Result.SUCCESS);
 
-
-        when(memoryImprint.getEntries()).thenReturn(entries);
-
-        Integer result = instance.getMinimumCodeReviewValue(memoryImprint, true);
+        Integer result = instance.getMinimumCodeReviewValue(entries, true);
         assertEquals(Integer.valueOf(1), result);
     }
 
     /**
-     * Tests {@link ParameterExpander#getMinimumCodeReviewValue(MemoryImprint, boolean)} with one
+     * Tests {@link ParameterExpander#getMinimumCodeReviewValue(MemoryImprint.Entry[], boolean)} with one
      * successful build vote skipped.
      *
      * @see com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.GerritTrigger#getSkipVote()
@@ -343,7 +337,6 @@ public class ParameterExpanderTest {
         IGerritHudsonTriggerConfig config = Setup.createConfig();
 
         ParameterExpander instance = new ParameterExpander(config, jenkins);
-        MemoryImprint memoryImprint = mock(MemoryImprint.class);
         MemoryImprint.Entry[] entries = new MemoryImprint.Entry[1];
 
         GerritTrigger trigger = mock(GerritTrigger.class);
@@ -352,14 +345,12 @@ public class ParameterExpanderTest {
         when(trigger.getSkipVote()).thenReturn(skipVote);
         entries[0] = Setup.createAndSetupMemoryImprintEntry(trigger, Result.SUCCESS);
 
-        when(memoryImprint.getEntries()).thenReturn(entries);
-
-        Integer result = instance.getMinimumCodeReviewValue(memoryImprint, true);
+        Integer result = instance.getMinimumCodeReviewValue(entries, true);
         assertEquals(null, result);
     }
 
     /**
-     * Tests {@link ParameterExpander#getMinimumCodeReviewValue(MemoryImprint, boolean)} with one
+     * Tests {@link ParameterExpander#getMinimumCodeReviewValue(MemoryImprint.Entry[], boolean)} with one
      * job that has override core review value on build successful.
      *
      * @see com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.GerritTrigger#getSkipVote()
@@ -384,12 +375,12 @@ public class ParameterExpanderTest {
 
         // Since one job has overriden CR value, it is the only one inspected
         // and therefore the only one that contributes.
-        Integer result = instance.getMinimumCodeReviewValue(memoryImprint, false);
+        Integer result = instance.getMinimumCodeReviewValue(entries, false);
         assertEquals(Integer.valueOf(2), result);
     }
 
     /**
-     * Tests {@link ParameterExpander#getMinimumCodeReviewValue(MemoryImprint, boolean)} with one
+     * Tests {@link ParameterExpander#getMinimumCodeReviewValue(MemoryImprint.Entry[], boolean)} with one
      * job that has override core review value on build successful.
      *
      * @see com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.GerritTrigger#getSkipVote()
@@ -399,7 +390,6 @@ public class ParameterExpanderTest {
         IGerritHudsonTriggerConfig config = Setup.createConfigWithCodeReviewsNull();
 
         ParameterExpander instance = new ParameterExpander(config, jenkins);
-        MemoryImprint memoryImprint = mock(MemoryImprint.class);
         MemoryImprint.Entry[] entries = new MemoryImprint.Entry[2];
 
         GerritTrigger trigger = mock(GerritTrigger.class);
@@ -410,16 +400,14 @@ public class ParameterExpanderTest {
         when(trigger.getGerritBuildFailedCodeReviewValue()).thenReturn(-2);
         entries[1] = Setup.createAndSetupMemoryImprintEntry(trigger, Result.FAILURE);
 
-        when(memoryImprint.getEntries()).thenReturn(entries);
-
         // Since one job has overriden CR value, it is the only one inspected
         // and therefore the only one that contributes.
-        Integer result = instance.getMinimumCodeReviewValue(memoryImprint, false);
+        Integer result = instance.getMinimumCodeReviewValue(entries, false);
         assertEquals(Integer.valueOf(-2), result);
     }
 
     /**
-     * Tests {@link ParameterExpander#getMinimumCodeReviewValue(MemoryImprint, boolean)} with one
+     * Tests {@link ParameterExpander#getMinimumCodeReviewValue(MemoryImprint.Entry[], boolean)} with one
      * job that has override core review value on build successful.
      *
      * @see com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.GerritTrigger#getSkipVote()
@@ -429,7 +417,6 @@ public class ParameterExpanderTest {
         IGerritHudsonTriggerConfig config = Setup.createConfigWithCodeReviewsNull();
 
         ParameterExpander instance = new ParameterExpander(config, jenkins);
-        MemoryImprint memoryImprint = mock(MemoryImprint.class);
         MemoryImprint.Entry[] entries = new MemoryImprint.Entry[2];
 
         GerritTrigger trigger = mock(GerritTrigger.class);
@@ -440,11 +427,9 @@ public class ParameterExpanderTest {
         when(trigger.getGerritBuildSuccessfulCodeReviewValue()).thenReturn(2);
         entries[1] = Setup.createAndSetupMemoryImprintEntry(trigger, Result.SUCCESS);
 
-        when(memoryImprint.getEntries()).thenReturn(entries);
-
         // Since one job has overriden CR value, it is the only one inspected
         // and therefore the only one that contributes.
-        Integer result = instance.getMinimumCodeReviewValue(memoryImprint, false);
+        Integer result = instance.getMinimumCodeReviewValue(entries, false);
         assertEquals(Integer.valueOf(2), result);
     }
 
@@ -644,11 +629,16 @@ public class ParameterExpanderTest {
         MemoryImprint memoryImprint = mock(MemoryImprint.class);
         when(memoryImprint.getEvent()).thenReturn(event);
 
-        when(memoryImprint.wereAllBuildsSuccessful()).thenReturn(allAreOfType(Result.SUCCESS, expectedBuildResults));
-        when(memoryImprint.wereAllBuildsNotBuilt()).thenReturn(allAreOfType(Result.NOT_BUILT, expectedBuildResults));
-        when(memoryImprint.wereAnyBuildsFailed()).thenReturn(anyIsOfType(Result.FAILURE, expectedBuildResults));
-        when(memoryImprint.wereAnyBuildsUnstable()).thenReturn(anyIsOfType(Result.UNSTABLE, expectedBuildResults));
-
+//        List<Result> results = Arrays.asList(expectedBuildResults);
+//        if (results.contains(Result.NOT_BUILT)) {
+//            when(memoryImprint.getWorstResult()).thenReturn(Result.NOT_BUILT);
+//        } else if (results.contains(Result.FAILURE)) {
+//            when(memoryImprint.getWorstResult()).thenReturn(Result.FAILURE);
+//        } else if (results.contains(Result.UNSTABLE)) {
+//            when(memoryImprint.getWorstResult()).thenReturn(Result.UNSTABLE);
+//        } else {
+//            when(memoryImprint.getWorstResult()).thenReturn(Result.SUCCESS);
+//        }
         when(memoryImprint.getEntries()).thenReturn(entries);
 
         assertThat("Event should be a ChangeBasedEvent", event, instanceOf(ChangeBasedEvent.class));
@@ -724,9 +714,7 @@ public class ParameterExpanderTest {
         MemoryImprint memoryImprint = mock(MemoryImprint.class);
         when(memoryImprint.getEvent()).thenReturn(event);
 
-        when(memoryImprint.wereAllBuildsSuccessful()).thenReturn(true);
-        when(memoryImprint.wereAnyBuildsFailed()).thenReturn(false);
-        when(memoryImprint.wereAnyBuildsUnstable()).thenReturn(false);
+        //when(memoryImprint.getWorstResult()).thenReturn(Result.SUCCESS);
 
         MemoryImprint.Entry[] entries = { Setup.createImprintEntry(project, r) };
 
@@ -781,9 +769,7 @@ public class ParameterExpanderTest {
         MemoryImprint memoryImprint = mock(MemoryImprint.class);
         when(memoryImprint.getEvent()).thenReturn(event);
 
-        when(memoryImprint.wereAllBuildsSuccessful()).thenReturn(true);
-        when(memoryImprint.wereAnyBuildsFailed()).thenReturn(false);
-        when(memoryImprint.wereAnyBuildsUnstable()).thenReturn(false);
+        //when(memoryImprint.getWorstResult()).thenReturn(Result.SUCCESS);
 
         MemoryImprint.Entry[] entries = { Setup.createImprintEntry(project, r) };
 

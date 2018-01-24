@@ -120,6 +120,7 @@ import java.util.regex.PatternSyntaxException;
 import jenkins.model.Jenkins;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -1032,9 +1033,15 @@ public class GerritTrigger extends Trigger<Job> {
     private List<Change> getChanges(ChangeBasedEvent event, GerritQueryHandler gerritQueryHandler) {
         Topic topic = event.getChange().getTopicObject();
         List<Change> changes;
-        if (topic != null) {
+        if (topic != null && StringUtils.isNotEmpty(topic.getName())) {
             Map<Change, PatchSet> topicChanges = topic.getChanges(gerritQueryHandler);
             changes = new ArrayList<Change>(topicChanges.keySet());
+            if (changes.isEmpty()) {
+                logger.warn("Query for topic {0} did not return any changes. "
+                                + "That is not possible as it should contain at least one change: {1}",
+                        topic.getName(), event.getChange());
+            }
+
         } else {
             changes = Collections.singletonList(event.getChange());
         }
@@ -2289,8 +2296,8 @@ public class GerritTrigger extends Trigger<Job> {
             }
 
             List<ChangeBasedEvent> outdatedEvents = new ArrayList<ChangeBasedEvent>();
-            Iterator<GerritTriggeredEvent> it = runningJobs.iterator();
             synchronized (runningJobs) {
+                Iterator<GerritTriggeredEvent> it = runningJobs.iterator();
                 while (it.hasNext()) {
                     GerritTriggeredEvent runningEvent = it.next();
                     // Find all entries in runningJobs with the same Change #.
@@ -2320,11 +2327,6 @@ public class GerritTrigger extends Trigger<Job> {
                                 < Integer.parseInt(event.getPatchSet().getNumber());
 
                         if (!abortBecauseOfTopic && !shouldCancelPatchsetNumber) {
-                            continue;
-                        }
-
-
-                        if (!shouldCancelPatchsetNumber) {
                             continue;
                         }
 
@@ -2441,29 +2443,28 @@ public class GerritTrigger extends Trigger<Job> {
          */
         public boolean remove(ChangeBasedEvent event) {
             logger.debug("Removing future job " + event.getPatchSet().getNumber());
-            return runningJobs.add(event);
-        }
-    }
-
-
-    /**
-     * Checks that execution must be aborted because of topic.
-     * @param event the event.
-     * @param policy the cancellation policy.
-     * @param runningChange the ongoing change.
-     * @return true if so.
-     */
-    private boolean abortBecauseOfTopic(ChangeBasedEvent event,
-                                        BuildCancellationPolicy policy,
-                                        ChangeBasedEvent runningChange) {
-        Topic topic = event.getChange().getTopicObject();
-
-        if (event instanceof TopicChanged) {
-            topic = ((TopicChanged)event).getOldTopicObject();
+            return runningJobs.remove(event);
         }
 
-        return policy.isAbortSameTopic()
-                && topic != null
-                && topic.equals(runningChange.getChange().getTopicObject());
+        /**
+         * Checks that execution must be aborted because of topic.
+         * @param event the event.
+         * @param policy the cancellation policy.
+         * @param runningChange the ongoing change.
+         * @return true if so.
+         */
+        private boolean abortBecauseOfTopic(ChangeBasedEvent event,
+                                            BuildCancellationPolicy policy,
+                                            ChangeBasedEvent runningChange) {
+            Topic topic = event.getChange().getTopicObject();
+
+            if (event instanceof TopicChanged) {
+                topic = ((TopicChanged)event).getOldTopicObject();
+            }
+
+            return policy.isAbortSameTopic()
+                    && topic != null
+                    && topic.equals(runningChange.getChange().getTopicObject());
+        }
     }
 }

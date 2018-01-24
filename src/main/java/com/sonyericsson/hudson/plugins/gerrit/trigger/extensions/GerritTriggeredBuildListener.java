@@ -23,6 +23,7 @@
  */
 package com.sonyericsson.hudson.plugins.gerrit.trigger.extensions;
 
+import com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier.helpers.EntriesHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,16 +83,7 @@ public abstract class GerritTriggeredBuildListener implements ExtensionPoint {
       * @param command the command.
       */
      public static void fireOnCompleted(MemoryImprint memoryImprint, String command) {
-         Result result = Result.FAILURE;
-         if (memoryImprint.wereAllBuildsSuccessful()) {
-             result = Result.SUCCESS;
-         } else if (memoryImprint.wereAnyBuildsFailed()) {
-             result = Result.FAILURE;
-         } else if (memoryImprint.wereAnyBuildsUnstable()) {
-             result = Result.UNSTABLE;
-         } else if (memoryImprint.wereAllBuildsNotBuilt()) {
-             result = Result.NOT_BUILT;
-         }
+         Result result = EntriesHelper.getWorstResult(memoryImprint.getEntries());
          for (GerritTriggeredBuildListener listener : all()) {
              try {
                  listener.onCompleted(result, memoryImprint.getEvent(), command);

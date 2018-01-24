@@ -75,7 +75,8 @@ public class BuildStartedRestCommandJob extends AbstractRestCommandJob {
     protected ReviewInput createReview() {
         // FIXME BUG!!!
         String message = parameterExpander.getBuildsStartedMessage(builds, listener, event, stats).get(0);
-        Notify notificationLevel = parameterExpander.getHighestNotificationLevel(builds, false);
+        // FIXME SECOND BUG!!!
+        Notify notificationLevel = parameterExpander.getHighestNotificationLevel(null, false);
         return new ReviewInput(message).setNotify(notificationLevel);
     }
 

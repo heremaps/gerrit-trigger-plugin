@@ -55,10 +55,14 @@ import java.util.List;
 import java.util.Map;
 
 import jenkins.model.Jenkins;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 import static com.sonyericsson.hudson.plugins.gerrit.trigger.PluginImpl.getServerConfig;
+import static com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier.helpers.EntriesHelper.areNotExecutedAtAll;
+import static com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier.helpers.EntriesHelper.getWorstResult;
 import static com.sonyericsson.hudson.plugins.gerrit.trigger.utils.Logic.shouldSkip;
 
 /**
@@ -471,14 +475,14 @@ public class ParameterExpander {
     /**
      * Returns the minimum verified value for the build results in the memory.
      * If no builds have contributed to verified value, this method returns null
-     * @param memoryImprint the memory.
+     * @param entries the entries.
      * @param onlyBuilt only count builds that completed (no NOT_BUILT builds)
      * @return the lowest verified value.
      */
     @CheckForNull
-    public Integer getMinimumVerifiedValue(MemoryImprint memoryImprint, boolean onlyBuilt) {
+    public Integer getMinimumVerifiedValue(Entry[] entries, boolean onlyBuilt) {
         Integer verified = Integer.MAX_VALUE;
-        for (Entry entry : memoryImprint.getEntries()) {
+        for (Entry entry : entries) {
             if (entry == null) {
                 continue;
             }
@@ -509,34 +513,16 @@ public class ParameterExpander {
     }
 
     /**
-     * Convert entries of memoryImprint object to list of builds
-     *
-     * @param memoryImprint the memory
-     * @return the list of run objects from memory
-     */
-    private List<Run> fromMemoryImprintToBuilds(MemoryImprint memoryImprint) {
-        final List<Run> runs = new ArrayList<Run>(memoryImprint.getEntries().length);
-        for (Entry entry : memoryImprint.getEntries()) {
-            if (entry == null || entry.getBuild() == null) {
-                continue;
-            }
-            runs.add(entry.getBuild());
-        }
-
-        return runs;
-    }
-
-    /**
      * Returns the minimum code review value for the build results in the memory.
      * If no builds have contributed to code review value, this method returns null
-     * @param memoryImprint the memory
+     * @param entries the entries.
      * @param onlyBuilt only count builds that completed (no NOT_BUILT builds)
      * @return the lowest code review value.
      */
     @CheckForNull
-    public Integer getMinimumCodeReviewValue(MemoryImprint memoryImprint, boolean onlyBuilt) {
+    public Integer getMinimumCodeReviewValue(Entry[] entries, boolean onlyBuilt) {
         Integer codeReview = Integer.MAX_VALUE;
-        for (Entry entry : memoryImprint.getEntries()) {
+        for (Entry entry : entries) {
             Run build = entry.getBuild();
             if (build == null) {
                 continue;
@@ -566,25 +552,17 @@ public class ParameterExpander {
     /**
      * Returns the highest configured notification level.
      *
-     * @param memoryImprint the memory
+     * @param entries the entries.
      * @param onlyBuilt only count builds that completed (no NOT_BUILT builds)
      * @return the highest configured notification level.
      */
-    public Notify getHighestNotificationLevel(MemoryImprint memoryImprint, boolean onlyBuilt) {
-        return getHighestNotificationLevel(fromMemoryImprintToBuilds(memoryImprint), onlyBuilt);
-    }
-
-    /**
-     * Returns the highest configured notification level.
-     *
-     * @param builds the list of builds
-     * @param onlyBuilt only count builds that completed (no NOT_BUILT builds)
-     * @return the highest configured notification level.
-     */
-    public Notify getHighestNotificationLevel(List<Run> builds, boolean onlyBuilt) {
+    public Notify getHighestNotificationLevel(Entry[] entries, boolean onlyBuilt) {
         Notify highestLevel = Notify.NONE;
-
-        for (Run build : builds) {
+        for (Entry entry : entries) {
+            if (entry == null) {
+                continue;
+            }
+            Run build = entry.getBuild();
             if (build == null) {
                 continue;
             }
@@ -634,45 +612,14 @@ public class ParameterExpander {
      * @return list of commands to be executed.
      */
     public List<String> getBuildCompletedCommands(MemoryImprint memoryImprint, TaskListener listener) {
-        String command;
-        // We only count builds without NOT_BUILT status normally. If *no*
-        // builds were successful, unstable or failed, we find the minimum
-        // verified/code review value for the NOT_BUILT ones too.
-        boolean onlyCountBuilt = true;
-        if (memoryImprint.wereAllBuildsSuccessful()) {
-            command = config.getGerritCmdBuildSuccessful();
-        } else if (memoryImprint.wereAnyBuildsFailed()) {
-            command = config.getGerritCmdBuildFailed();
-        } else if (memoryImprint.wereAnyBuildsUnstable()) {
-            command = config.getGerritCmdBuildUnstable();
-        } else if (memoryImprint.wereAllBuildsNotBuilt()) {
-            onlyCountBuilt = false;
-            command = config.getGerritCmdBuildNotBuilt();
+        GerritTriggeredEvent event = memoryImprint.getEvent();
+
+        if (event instanceof ChangeBasedEvent) {
+            return fillOnCompletedParams(memoryImprint, listener);
         } else {
-            //Just as bad as failed for now.
-            command = config.getGerritCmdBuildFailed();
-        }
-
-        Integer verified = null;
-        Integer codeReview = null;
-        Notify notifyLevel = Notify.ALL;
-        GerritTriggeredEvent gerritEvent = memoryImprint.getEvent();
-
-        if (gerritEvent.isScorable()) {
-            verified = getMinimumVerifiedValue(memoryImprint, onlyCountBuilt);
-            codeReview = getMinimumCodeReviewValue(memoryImprint, onlyCountBuilt);
-            notifyLevel = getHighestNotificationLevel(fromMemoryImprintToBuilds(memoryImprint), onlyCountBuilt);
-        }
-
-        Map<String, String> parameters = createStandardParameters(null, codeReview, verified, notifyLevel.name());
-
-        if (gerritEvent instanceof ChangeBasedEvent) {
-            return fillOnCompletedParams(memoryImprint, listener, command, parameters);
-        } else {
-            return Collections.singletonList(getBuildCompletedCommand(command,
-                    memoryImprint.getEntries(),
-                    listener,
-                    parameters));
+            Entry[] entries = memoryImprint.getEntries();
+            boolean scorable = event.isScorable();
+            return Collections.singletonList(getBuildCompletedCommand(null, null, scorable, entries, listener));
         }
     }
 
@@ -681,12 +628,9 @@ public class ParameterExpander {
      *
      * @param memoryImprint x.
      * @param listener x.
-     * @param command x.
-     * @param parameters x.
      * @return x.
      */
-    private List<String> fillOnCompletedParams(MemoryImprint memoryImprint,
-                                               TaskListener listener, String command, Map<String, String> parameters) {
+    private List<String> fillOnCompletedParams(MemoryImprint memoryImprint, TaskListener listener) {
         ChangeBasedEvent changeBasedEvent = (ChangeBasedEvent)memoryImprint.getEvent();
 
         Topic topic = changeBasedEvent.getChange().getTopicObject();
@@ -700,19 +644,22 @@ public class ParameterExpander {
 
                 if (!newEntries.isEmpty()) {
                     PatchSet patchSet = pair.getValue();
-                    addChangeBasedData(change, patchSet, parameters);
-                    String buildCompletedCommand = getBuildCompletedCommand(command,
-                            newEntries.toArray(new Entry[newEntries.size()]), listener, parameters);
+
+                    String buildCompletedCommand = getBuildCompletedCommand(change, patchSet,
+                            changeBasedEvent.isScorable(),
+                            newEntries.toArray(new Entry[newEntries.size()]), listener);
                     commands.add(buildCompletedCommand);
                 }
             }
             return commands;
         } else {
-            addChangeBasedData(changeBasedEvent.getChange(), changeBasedEvent.getPatchSet(), parameters);
-            return Collections.singletonList(getBuildCompletedCommand(command,
+
+            return Collections.singletonList(getBuildCompletedCommand(changeBasedEvent.getChange(),
+                    changeBasedEvent.getPatchSet(),
+                    changeBasedEvent.isScorable(),
                     memoryImprint.getEntries(),
-                    listener,
-                    parameters));
+                    listener
+                    ));
         }
     }
 
@@ -755,14 +702,48 @@ public class ParameterExpander {
     /**
      * Gets the "expanded" build completed command to send to gerrit.
      *
-     * @param command the command to be expanded.
+     * @param patchSet x.
+     * @param isScorable x.
+     * @param change x.
      * @param entries the entries.
      * @param listener      the taskListener
-     * @param parameters the map of build parameteres.
      * @return the command.
      */
-    public String getBuildCompletedCommand(String command,
-                                           Entry[] entries, TaskListener listener, Map<String, String> parameters) {
+    public String getBuildCompletedCommand(@CheckForNull Change change,
+                                           @CheckForNull PatchSet patchSet,
+                                           boolean isScorable,
+                                           Entry[] entries, TaskListener listener) {
+
+        if (areNotExecutedAtAll(entries)) {
+            return StringUtils.EMPTY;
+        }
+
+        String command;
+        // We only count builds without NOT_BUILT status normally. If *no*
+        // builds were successful, unstable or failed, we find the minimum
+        // verified/code review value for the NOT_BUILT ones too.
+        boolean onlyCountBuilt = true;
+
+        Result worstResult = getWorstResult(entries);
+        if (worstResult.equals(Result.SUCCESS)) {
+            command = config.getGerritCmdBuildSuccessful();
+        } else if (worstResult.equals(Result.UNSTABLE)) {
+            command = config.getGerritCmdBuildUnstable();
+        } else if (worstResult.equals(Result.FAILURE)) {
+            command = config.getGerritCmdBuildFailed();
+        } else if (worstResult.equals(Result.NOT_BUILT)) {
+            onlyCountBuilt = false;
+            command = config.getGerritCmdBuildNotBuilt();
+        } else {
+            //Just as bad as failed for now.
+            command = config.getGerritCmdBuildFailed();
+        }
+
+        Map<String, String> parameters = createStandardParameters(isScorable, entries, onlyCountBuilt);
+        if (change != null && patchSet != null) {
+            addChangeBasedData(change, patchSet, parameters);
+        }
+
         // escapes ' as '"'"' in order to avoid breaking command line param
         // Details: http://stackoverflow.com/a/26165123/99834
         parameters.put("BUILDS_STATS", createBuildsStats(entries,
@@ -778,9 +759,31 @@ public class ParameterExpander {
     }
 
     /**
+     * x.
+     *
+     * @param isScorable x.
+     * @param entries x.
+     * @param onlyCountBuilt x.
+     * @return x.
+     */
+    private Map<String, String> createStandardParameters(boolean isScorable, Entry[] entries, boolean onlyCountBuilt) {
+        Integer verified = null;
+        Integer codeReview = null;
+        Notify notifyLevel = Notify.ALL;
+
+        if (isScorable) {
+            verified = getMinimumVerifiedValue(entries, onlyCountBuilt);
+            codeReview = getMinimumCodeReviewValue(entries, onlyCountBuilt);
+            notifyLevel = getHighestNotificationLevel(entries, onlyCountBuilt);
+        }
+
+        return createStandardParameters(null, codeReview, verified, notifyLevel.name());
+    }
+
+    /**
      * Creates the BUILD_STATS string to send in a message,
      * it contains the status of every build with its URL.
-     * @param entries the memory entries for all the builds.
+     * @param entries the entries.
      * @param listener the taskListener
      * @param parameters the &lt;parameters&gt; from the trigger.
      * @return the string.

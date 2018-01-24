@@ -28,13 +28,11 @@ import com.infradna.tool.bridge_method_injector.WithBridgeMethods;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.diagnostics.BuildMemoryReport;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier.model.BuildMemory.MemoryImprint.Entry;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.GerritCause;
-import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.GerritTrigger;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.data.TriggerContext;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.GerritTriggeredEvent;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.Job;
-import hudson.model.Result;
 import hudson.model.Run;
 import jenkins.model.Jenkins;
 import org.slf4j.Logger;
@@ -50,8 +48,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-
-import static com.sonyericsson.hudson.plugins.gerrit.trigger.utils.Logic.shouldSkip;
 
 /**
  * Keeps track of what builds have been triggered and if all builds are done for specific events.
@@ -342,9 +338,8 @@ public class BuildMemory {
         if (pb == null) {
             return false;
         } else {
-            String fullName = project.getFullName();
             for (Entry entry : pb.getEntries()) {
-                if (entry.isProject(fullName)) {
+                if (entry.isProject(project)) {
                     return true;
                 }
             }
@@ -364,9 +359,8 @@ public class BuildMemory {
         if (pb == null) {
             return false;
         } else {
-            String fullName = project.getFullName();
             for (Entry entry : pb.getEntries()) {
-                if (entry.isProject(fullName)) {
+                if (entry.isProject(project)) {
                     if (entry.getBuild() != null) {
                         return !entry.isBuildCompleted();
                     } else {
@@ -714,152 +708,14 @@ public class BuildMemory {
             return new BuildsStartedStats(event, list.size(), started);
         }
 
-        /**
-         * If all entry's results are configured to be skipped.
-         *
-         * @return true if so.
-         * @see #wereAllBuildsSuccessful()
-         */
-        public synchronized boolean areAllBuildResultsSkipped() {
-            for (Entry entry : list) {
-                if (entry == null) {
-                    continue;
-                }
-                Run build = entry.getBuild();
-                if (build == null) {
-                    return false;
-                } else if (!entry.isBuildCompleted()) {
-                    return false;
-                }
-                Result buildResult = build.getResult();
-                GerritTrigger trigger = GerritTrigger.getTrigger(entry.getProject());
-                if (!shouldSkip(trigger.getSkipVote(), buildResult)) {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        /**
-         * Tells if all builds in the memory were successful.
-         *
-         * @return true if it is so, false if not all builds have started or not completed or have any different result
-         *         than {@link Result#SUCCESS}.
-         */
-        public synchronized boolean wereAllBuildsSuccessful() {
-            if (areAllBuildResultsSkipped()) {
-                for (Entry entry : list) {
-                    if (entry == null) {
-                        continue;
-                    }
-                    Run build = entry.getBuild();
-                    if (build == null) {
-                        return false;
-                    } else if (!entry.isBuildCompleted()) {
-                        return false;
-                    }
-                    Result buildResult = build.getResult();
-                    if (buildResult != Result.SUCCESS) {
-                        return false;
-                    }
-                }
-            } else {
-                for (Entry entry : list) {
-                    if (entry == null) {
-                        continue;
-                    }
-                    Run build = entry.getBuild();
-                    if (build == null) {
-                        return false;
-                    } else if (!entry.isBuildCompleted()) {
-                        return false;
-                    }
-                    Result buildResult = build.getResult();
-                    if (buildResult != Result.SUCCESS) {
-                        GerritTrigger trigger = GerritTrigger.getTrigger(entry.getProject());
-                        if (!shouldSkip(trigger.getSkipVote(), buildResult)) {
-                            return false;
-                        }
-                    }
-                }
-            }
-            return true;
-        }
-
-        /**
-         * Returns if any started and completed build has the result {@link Result#FAILURE}.
-         *
-         * @return true if it is so.
-         */
-        public synchronized boolean wereAnyBuildsFailed() {
-            for (Entry entry : list) {
-                if (entry == null) {
-                    continue;
-                }
-                Run build = entry.getBuild();
-                if (build != null && entry.isBuildCompleted()
-                        && build.getResult() == Result.FAILURE) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Returns if any started and completed build has the result {@link Result#UNSTABLE}.
-         *
-         * @return true if it is so.
-         */
-        public synchronized boolean wereAnyBuildsUnstable() {
-            for (Entry entry : list) {
-                if (entry == null) {
-                    continue;
-                }
-                Run build = entry.getBuild();
-                if (build != null && entry.isBuildCompleted()
-                        && build.getResult() == Result.UNSTABLE) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Tells if all builds in the memory were not built.
-         *
-         * @return true if it is so, false if not all builds have started or not completed or have any different result
-         *         than {@link Result#NOT_BUILT}.
-         */
-        public synchronized boolean wereAllBuildsNotBuilt() {
-            for (Entry entry : list) {
-                if (entry == null) {
-                    continue;
-                }
-                if (entry.isCancelled()) {
-                    continue;
-                }
-                Run build = entry.getBuild();
-                if (build == null) {
-                    return false;
-                } else if (!entry.isBuildCompleted()) {
-                    return false;
-                }
-                Result buildResult = build.getResult();
-                if (buildResult != Result.NOT_BUILT) {
-                    return false;
-                }
-            }
-            return true;
-        }
-
         //CS IGNORE FinalClass FOR NEXT 5 LINES. REASON: Testability.
 
         /**
          * A project-build entry in the list of a MemoryImprint.
          */
         public static class Entry implements Cloneable {
-
             private final String project;
+            private transient Job projectObject = null;
             private String build;
             private boolean buildCompleted;
             private boolean cancelled;
@@ -868,6 +724,7 @@ public class BuildMemory {
             private final long triggeredTimestamp;
             private Long completedTimestamp = null;
             private Long startedTimestamp = null;
+            private transient Run buildObject = null;
             private boolean notified;
 
             /**
@@ -878,7 +735,9 @@ public class BuildMemory {
              */
             private Entry(Job project, Run build) {
                 this.project = project.getFullName();
+                this.projectObject = project;
                 this.build = build.getId();
+                this.buildObject = build;
                 this.startedTimestamp = System.currentTimeMillis();
                 this.triggeredTimestamp = System.currentTimeMillis();
                 this.buildCompleted = false;
@@ -892,6 +751,8 @@ public class BuildMemory {
              */
             private Entry(Job project) {
                 this.project = project.getFullName();
+                this.projectObject = project;
+                buildCompleted = false;
                 cancelled = false;
                 this.triggeredTimestamp = System.currentTimeMillis();
                 this.buildCompleted = false;
@@ -906,7 +767,9 @@ public class BuildMemory {
              */
             public Entry(Entry copy) {
                 this.project = copy.project;
+                this.projectObject = copy.projectObject;
                 this.build = copy.build;
+                this.buildObject = copy.buildObject;
                 this.buildCompleted = copy.buildCompleted;
                 this.unsuccessfulMessage = copy.unsuccessfulMessage;
                 this.triggeredTimestamp = copy.triggeredTimestamp;
@@ -948,12 +811,13 @@ public class BuildMemory {
             @CheckForNull
             @WithBridgeMethods(AbstractProject.class)
             public Job getProject() {
-                Jenkins jenkins = Jenkins.getInstance();
-                if (jenkins != null) {
-                    return jenkins.getItemByFullName(project, Job.class);
-                } else {
-                    return null;
+                if (projectObject == null) {
+                    Jenkins jenkins = Jenkins.getInstance();
+                    if (jenkins != null) {
+                        projectObject = jenkins.getItemByFullName(project, Job.class);
+                    }
                 }
+                return projectObject;
             }
 
             /**
@@ -964,14 +828,14 @@ public class BuildMemory {
             @CheckForNull
             @WithBridgeMethods(AbstractBuild.class)
             public Run getBuild() {
-                if (build != null && project != null) {
-                    Job p = getProject();
-                    if (p != null) {
-                        return p.getBuild(build);
+                if (buildObject == null) {
+                    getProject();
+                    if (build != null && projectObject != null) {
+                        buildObject = projectObject.getBuild(build);
                     }
                 }
 
-                return null;
+                return buildObject;
             }
 
             /**
@@ -982,9 +846,11 @@ public class BuildMemory {
             private void setBuild(Run build) {
                 if (build != null) {
                     this.build = build.getId();
+                    this.buildObject = build;
                     this.startedTimestamp = System.currentTimeMillis();
                 } else {
                     this.build = null;
+                    this.buildObject = null;
                 }
             }
 
@@ -1119,6 +985,7 @@ public class BuildMemory {
              * @return true if so.
              * @see #getProject()
              */
+            @Deprecated
             public boolean isProject(String otherName) {
                 if (this.project != null && otherName != null) {
                     return this.project.equals(otherName);
@@ -1133,11 +1000,13 @@ public class BuildMemory {
              *
              * @param other the other project to check
              * @return true if so.
-             * @deprecated use {@link #isProject(String)} instead
              */
-            @Deprecated
             public boolean isProject(Job other) {
-                return isProject(other.getFullName());
+                getProject();
+                if (projectObject != null) {
+                    return projectObject.equals(other);
+                }
+                return other == null;
             }
         }
     }
