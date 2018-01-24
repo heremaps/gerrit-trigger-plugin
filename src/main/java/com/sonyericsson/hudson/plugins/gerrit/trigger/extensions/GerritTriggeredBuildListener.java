@@ -82,16 +82,7 @@ public abstract class GerritTriggeredBuildListener implements ExtensionPoint {
       * @param command the command.
       */
      public static void fireOnCompleted(MemoryImprint memoryImprint, String command) {
-         Result result = Result.FAILURE;
-         if (memoryImprint.wereAllBuildsSuccessful()) {
-             result = Result.SUCCESS;
-         } else if (memoryImprint.wereAnyBuildsFailed()) {
-             result = Result.FAILURE;
-         } else if (memoryImprint.wereAnyBuildsUnstable()) {
-             result = Result.UNSTABLE;
-         } else if (memoryImprint.wereAllBuildsNotBuilt()) {
-             result = Result.NOT_BUILT;
-         }
+         Result result = memoryImprint.getWorstResult();
          for (GerritTriggeredBuildListener listener : all()) {
              try {
                  listener.onCompleted(result, memoryImprint.getEvent(), command);

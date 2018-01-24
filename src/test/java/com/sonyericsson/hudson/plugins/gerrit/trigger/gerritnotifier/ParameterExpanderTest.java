@@ -566,11 +566,16 @@ public class ParameterExpanderTest {
         MemoryImprint memoryImprint = mock(MemoryImprint.class);
         when(memoryImprint.getEvent()).thenReturn(event);
 
-        when(memoryImprint.wereAllBuildsSuccessful()).thenReturn(allAreOfType(Result.SUCCESS, expectedBuildResults));
-        when(memoryImprint.wereAllBuildsNotBuilt()).thenReturn(allAreOfType(Result.NOT_BUILT, expectedBuildResults));
-        when(memoryImprint.wereAnyBuildsFailed()).thenReturn(anyIsOfType(Result.FAILURE, expectedBuildResults));
-        when(memoryImprint.wereAnyBuildsUnstable()).thenReturn(anyIsOfType(Result.UNSTABLE, expectedBuildResults));
-
+        List<Result> results = Arrays.asList(expectedBuildResults);
+        if (results.contains(Result.NOT_BUILT)) {
+            when(memoryImprint.getWorstResult()).thenReturn(Result.NOT_BUILT);
+        } else if (results.contains(Result.FAILURE)) {
+            when(memoryImprint.getWorstResult()).thenReturn(Result.FAILURE);
+        } else if (results.contains(Result.UNSTABLE)) {
+            when(memoryImprint.getWorstResult()).thenReturn(Result.UNSTABLE);
+        } else {
+            when(memoryImprint.getWorstResult()).thenReturn(Result.SUCCESS);
+        }
         when(memoryImprint.getEntries()).thenReturn(entries);
 
         assertThat("Event should be a ChangeBasedEvent", event, instanceOf(ChangeBasedEvent.class));
@@ -644,9 +649,7 @@ public class ParameterExpanderTest {
         MemoryImprint memoryImprint = mock(MemoryImprint.class);
         when(memoryImprint.getEvent()).thenReturn(event);
 
-        when(memoryImprint.wereAllBuildsSuccessful()).thenReturn(true);
-        when(memoryImprint.wereAnyBuildsFailed()).thenReturn(false);
-        when(memoryImprint.wereAnyBuildsUnstable()).thenReturn(false);
+        when(memoryImprint.getWorstResult()).thenReturn(Result.SUCCESS);
 
         MemoryImprint.Entry[] entries = { Setup.createImprintEntry(project, r) };
 
@@ -701,9 +704,7 @@ public class ParameterExpanderTest {
         MemoryImprint memoryImprint = mock(MemoryImprint.class);
         when(memoryImprint.getEvent()).thenReturn(event);
 
-        when(memoryImprint.wereAllBuildsSuccessful()).thenReturn(true);
-        when(memoryImprint.wereAnyBuildsFailed()).thenReturn(false);
-        when(memoryImprint.wereAnyBuildsUnstable()).thenReturn(false);
+        when(memoryImprint.getWorstResult()).thenReturn(Result.SUCCESS);
 
         MemoryImprint.Entry[] entries = { Setup.createImprintEntry(project, r) };
 

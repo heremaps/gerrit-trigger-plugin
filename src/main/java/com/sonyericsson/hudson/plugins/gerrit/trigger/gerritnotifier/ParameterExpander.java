@@ -507,13 +507,14 @@ public class ParameterExpander {
         // builds were successful, unstable or failed, we find the minimum
         // verified/code review value for the NOT_BUILT ones too.
         boolean onlyCountBuilt = true;
-        if (memoryImprint.wereAllBuildsSuccessful()) {
+        Result worstResult = memoryImprint.getWorstResult();
+        if (worstResult.equals(Result.SUCCESS)) {
             command = config.getGerritCmdBuildSuccessful();
-        } else if (memoryImprint.wereAnyBuildsFailed()) {
-            command = config.getGerritCmdBuildFailed();
-        } else if (memoryImprint.wereAnyBuildsUnstable()) {
+        } else if (worstResult.equals(Result.UNSTABLE)) {
             command = config.getGerritCmdBuildUnstable();
-        } else if (memoryImprint.wereAllBuildsNotBuilt()) {
+        } else if (worstResult.equals(Result.FAILURE)) {
+            command = config.getGerritCmdBuildFailed();
+        } else if (worstResult.equals(Result.NOT_BUILT)) {
             onlyCountBuilt = false;
             command = config.getGerritCmdBuildNotBuilt();
         } else {
