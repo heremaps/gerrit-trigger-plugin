@@ -257,7 +257,7 @@ public class DependencyQueueTaskDispatcherTest {
     }
 
     /**
-     * Sets GerritTrigger interested in specifed gerrit event
+     * Sets GerritTrigger interested in specifed gerrit event.
      * @param patchsetCreated patch set.
      */
     public void makeGerritInterestedInEvent(PatchsetCreated patchsetCreated) {
@@ -270,12 +270,12 @@ public class DependencyQueueTaskDispatcherTest {
     }
 
     /**
-     * Moves patchset to specified isTriggered state.
+     * Moves patchset to specified triggered state.
      * @param patchsetCreated patch set.
-     * @param isTriggered was patch set triggered or not.
+     * @param triggered was patch set triggered or not.
      */
-    public void setTriggered(PatchsetCreated patchsetCreated, boolean isTriggered) {
-        when(toGerritRunListenerMock.isTriggered(abstractProjectDependencyMock, patchsetCreated)).thenReturn(isTriggered);
+    public void setTriggered(PatchsetCreated patchsetCreated, boolean triggered) {
+        when(toGerritRunListenerMock.isTriggered(abstractProjectDependencyMock, patchsetCreated)).thenReturn(triggered);
         when(toGerritRunListenerMock.isBuilding(abstractProjectDependencyMock, patchsetCreated)).thenReturn(false);
     }
 

@@ -976,6 +976,15 @@ public class ParameterExpander {
                 if (r2 != null) {
                     o2 = r2.ordinal;
                 }
+
+                if (r1 == Result.ABORTED) {
+                    o1 = -1;
+                }
+
+                if (r2 == Result.ABORTED) {
+                    o2 = -1;
+                }
+
                 if (descending) {
                     return o2 - o1;
                 } else {

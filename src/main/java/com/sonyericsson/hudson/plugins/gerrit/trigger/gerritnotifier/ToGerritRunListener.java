@@ -78,7 +78,8 @@ public final class ToGerritRunListener extends RunListener<Run> {
     public static final int ORDINAL = 10003;
     private static final Logger logger = LoggerFactory.getLogger(ToGerritRunListener.class);
     private final transient BuildMemory memory = new BuildMemory();
-    private final transient HashMap<GerritTriggeredEvent, ScheduledFuture> aggregationFutures = new HashMap<GerritTriggeredEvent, ScheduledFuture>();
+    private final transient HashMap<GerritTriggeredEvent, ScheduledFuture> aggregationFutures =
+            new HashMap<GerritTriggeredEvent, ScheduledFuture>();
 
     /**
      * Returns the registered instance of this class from the list of all listeners.
@@ -272,6 +273,12 @@ public final class ToGerritRunListener extends RunListener<Run> {
         }
     }
 
+    /**
+     * x.
+     * @param listener x.
+     * @param cause x.
+     * @param delay x.
+     */
     private void handleAggregation(final TaskListener listener, GerritCause cause, long delay) {
         final GerritTriggeredEvent gerritEvent = cause.getEvent();
 
