@@ -471,14 +471,14 @@ public class ParameterExpander {
     /**
      * Returns the minimum verified value for the build results in the memory.
      * If no builds have contributed to verified value, this method returns null
-     * @param memoryImprint the memory.
+     * @param entries the memory entries.
      * @param onlyBuilt only count builds that completed (no NOT_BUILT builds)
      * @return the lowest verified value.
      */
     @CheckForNull
-    public Integer getMinimumVerifiedValue(MemoryImprint memoryImprint, boolean onlyBuilt) {
+    public Integer getMinimumVerifiedValue(Entry[] entries, boolean onlyBuilt) {
         Integer verified = Integer.MAX_VALUE;
-        for (Entry entry : memoryImprint.getEntries()) {
+        for (Entry entry : entries) {
             if (entry == null) {
                 continue;
             }
@@ -511,12 +511,12 @@ public class ParameterExpander {
     /**
      * Convert entries of memoryImprint object to list of builds
      *
-     * @param memoryImprint the memory
+     * @param entries the entries from memoryImprint
      * @return the list of run objects from memory
      */
-    private List<Run> fromMemoryImprintToBuilds(MemoryImprint memoryImprint) {
-        final List<Run> runs = new ArrayList<Run>(memoryImprint.getEntries().length);
-        for (Entry entry : memoryImprint.getEntries()) {
+    private List<Run> fromMemoryImprintToBuilds(Entry[] entries) {
+        final List<Run> runs = new ArrayList<Run>(entries.length);
+        for (Entry entry : entries) {
             if (entry == null || entry.getBuild() == null) {
                 continue;
             }
@@ -529,14 +529,14 @@ public class ParameterExpander {
     /**
      * Returns the minimum code review value for the build results in the memory.
      * If no builds have contributed to code review value, this method returns null
-     * @param memoryImprint the memory
+     * @param entries the memory entries
      * @param onlyBuilt only count builds that completed (no NOT_BUILT builds)
      * @return the lowest code review value.
      */
     @CheckForNull
-    public Integer getMinimumCodeReviewValue(MemoryImprint memoryImprint, boolean onlyBuilt) {
+    public Integer getMinimumCodeReviewValue(Entry[] entries, boolean onlyBuilt) {
         Integer codeReview = Integer.MAX_VALUE;
-        for (Entry entry : memoryImprint.getEntries()) {
+        for (Entry entry : entries) {
             Run build = entry.getBuild();
             if (build == null) {
                 continue;
@@ -571,7 +571,7 @@ public class ParameterExpander {
      * @return the highest configured notification level.
      */
     public Notify getHighestNotificationLevel(MemoryImprint memoryImprint, boolean onlyBuilt) {
-        return getHighestNotificationLevel(fromMemoryImprintToBuilds(memoryImprint), onlyBuilt);
+        return getHighestNotificationLevel(fromMemoryImprintToBuilds(memoryImprint.getEntries()), onlyBuilt);
     }
 
     /**
@@ -639,29 +639,51 @@ public class ParameterExpander {
         // builds were successful, unstable or failed, we find the minimum
         // verified/code review value for the NOT_BUILT ones too.
         boolean onlyCountBuilt = true;
-        if (memoryImprint.wereAllBuildsSuccessful()) {
-            command = config.getGerritCmdBuildSuccessful();
-        } else if (memoryImprint.wereAnyBuildsFailed()) {
-            command = config.getGerritCmdBuildFailed();
-        } else if (memoryImprint.wereAnyBuildsUnstable()) {
-            command = config.getGerritCmdBuildUnstable();
-        } else if (memoryImprint.wereAllBuildsNotBuilt()) {
-            onlyCountBuilt = false;
-            command = config.getGerritCmdBuildNotBuilt();
-        } else {
-            //Just as bad as failed for now.
-            command = config.getGerritCmdBuildFailed();
-        }
+//        if (memoryImprint.wereAllBuildsSuccessful()) {
+//            command = config.getGerritCmdBuildSuccessful();
+//        } else if (memoryImprint.wereAnyBuildsFailed()) {
+//            command = config.getGerritCmdBuildFailed();
+//        } else if (memoryImprint.wereAnyBuildsUnstable()) {
+//            command = config.getGerritCmdBuildUnstable();
+//        } else if (memoryImprint.wereAllBuildsNotBuilt()) {
+//            onlyCountBuilt = false;
+//            command = config.getGerritCmdBuildNotBuilt();
+//        } else {
+//            //Just as bad as failed for now.
+//            command = config.getGerritCmdBuildFailed();
+//        }
 
         Integer verified = null;
         Integer codeReview = null;
         Notify notifyLevel = Notify.ALL;
         GerritTriggeredEvent gerritEvent = memoryImprint.getEvent();
 
+        Entry[] entries = memoryImprint.getEntries();
+
+        Result worstResult = getWorstResult(entries);
+        switch (worstResult.ordinal) {
+            case 0:
+                command = config.getGerritCmdBuildSuccessful();
+                break;
+            case 1:
+                command = config.getGerritCmdBuildFailed();
+                break;
+            case 2:
+                command = config.getGerritCmdBuildUnstable();
+                break;
+            case 3:
+                command = config.getGerritCmdBuildNotBuilt();
+                onlyCountBuilt = false;
+                break;
+            default:
+                command = config.getGerritCmdBuildFailed();
+                break;
+        }
+
         if (gerritEvent.isScorable()) {
-            verified = getMinimumVerifiedValue(memoryImprint, onlyCountBuilt);
-            codeReview = getMinimumCodeReviewValue(memoryImprint, onlyCountBuilt);
-            notifyLevel = getHighestNotificationLevel(fromMemoryImprintToBuilds(memoryImprint), onlyCountBuilt);
+            verified = getMinimumVerifiedValue(entries, onlyCountBuilt);
+            codeReview = getMinimumCodeReviewValue(entries, onlyCountBuilt);
+            notifyLevel = getHighestNotificationLevel(fromMemoryImprintToBuilds(entries), onlyCountBuilt);
         }
 
         Map<String, String> parameters = createStandardParameters(null, codeReview, verified, notifyLevel.name());
@@ -670,10 +692,30 @@ public class ParameterExpander {
             return fillOnCompletedParams(memoryImprint, listener, command, parameters);
         } else {
             return Collections.singletonList(getBuildCompletedCommand(command,
-                    memoryImprint.getEntries(),
+                    entries,
                     listener,
                     parameters));
         }
+    }
+
+    public Result getWorstResult(Entry[] entries) {
+        Result worstResult = Result.SUCCESS;
+        for(Entry entry : entries) {
+            if (entry != null) {
+                Run build = entry.getBuild();
+                if (build != null && entry.isBuildCompleted() && build.getResult() != null) {
+                    GerritTrigger trigger = GerritTrigger.getTrigger(entry.getProject());
+                    if (trigger != null && !shouldSkip(trigger.getSkipVote(), build.getResult())) {
+                        if (build.getResult().isWorseThan(worstResult)) {
+                            worstResult = build.getResult();
+                        }
+                    }
+                } else {
+                    return Result.FAILURE;
+                }
+            }
+        }
+        return worstResult;
     }
 
     /**
