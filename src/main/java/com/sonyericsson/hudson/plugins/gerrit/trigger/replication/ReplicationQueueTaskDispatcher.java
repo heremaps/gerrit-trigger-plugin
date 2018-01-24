@@ -299,11 +299,15 @@ public class ReplicationQueueTaskDispatcher extends QueueTaskDispatcher implemen
         replicationCache.put(refReplicated);
         boolean queueMaintenanceRequired = false;
         for (BlockedItem blockedItem : blockedItems.values()) {
-            if (!blockedItem.canRun) {
-                blockedItem.processRefReplicatedEvent(refReplicated);
-                if (blockedItem.canRun) {
-                    queueMaintenanceRequired = true;
+            if (blockedItem != null) {
+                if (!blockedItem.canRun) {
+                    blockedItem.processRefReplicatedEvent(refReplicated);
+                    if (blockedItem.canRun) {
+                        queueMaintenanceRequired = true;
+                    }
                 }
+            } else {
+                logger.info("Yes, we had NPE in ReplicationQueueTaskDispatcher");
             }
         }
         if (queueMaintenanceRequired) {
