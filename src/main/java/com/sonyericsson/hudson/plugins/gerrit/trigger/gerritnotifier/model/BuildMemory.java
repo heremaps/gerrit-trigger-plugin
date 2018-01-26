@@ -337,9 +337,8 @@ public class BuildMemory {
         if (pb == null) {
             return false;
         } else {
-            String fullName = project.getFullName();
             for (Entry entry : pb.getEntries()) {
-                if (entry.isProject(fullName)) {
+                if (entry.isProject(project)) {
                     return true;
                 }
             }
@@ -359,9 +358,8 @@ public class BuildMemory {
         if (pb == null) {
             return false;
         } else {
-            String fullName = project.getFullName();
             for (Entry entry : pb.getEntries()) {
-                if (entry.isProject(fullName)) {
+                if (entry.isProject(project)) {
                     if (entry.getBuild() != null) {
                         return !entry.isBuildCompleted();
                     } else {
@@ -684,8 +682,8 @@ public class BuildMemory {
          * A project-build entry in the list of a MemoryImprint.
          */
         public static class Entry implements Cloneable {
-
-            private String project;
+            private final String project;
+            private transient Job projectObject = null;
             private String build;
             private boolean buildCompleted;
             private boolean cancelled;
@@ -694,6 +692,7 @@ public class BuildMemory {
             private final long triggeredTimestamp;
             private Long completedTimestamp = null;
             private Long startedTimestamp = null;
+            private transient Run buildObject = null;
 
             /**
              * Constructor.
@@ -703,7 +702,9 @@ public class BuildMemory {
              */
             private Entry(Job project, Run build) {
                 this.project = project.getFullName();
+                this.projectObject = project;
                 this.build = build.getId();
+                this.buildObject = build;
                 this.startedTimestamp = System.currentTimeMillis();
                 this.triggeredTimestamp = System.currentTimeMillis();
                 buildCompleted = false;
@@ -716,6 +717,7 @@ public class BuildMemory {
              */
             private Entry(Job project) {
                 this.project = project.getFullName();
+                this.projectObject = project;
                 buildCompleted = false;
                 cancelled = false;
                 this.triggeredTimestamp = System.currentTimeMillis();
@@ -729,7 +731,9 @@ public class BuildMemory {
              */
             public Entry(Entry copy) {
                 this.project = copy.project;
+                this.projectObject = copy.projectObject;
                 this.build = copy.build;
+                this.buildObject = copy.buildObject;
                 this.buildCompleted = copy.buildCompleted;
                 this.unsuccessfulMessage = copy.unsuccessfulMessage;
                 this.triggeredTimestamp = copy.triggeredTimestamp;
@@ -752,12 +756,13 @@ public class BuildMemory {
             @CheckForNull
             @WithBridgeMethods(AbstractProject.class)
             public Job getProject() {
-                Jenkins jenkins = Jenkins.getInstance();
-                if (jenkins != null) {
-                    return jenkins.getItemByFullName(project, Job.class);
-                } else {
-                    return null;
+                if (projectObject == null) {
+                    Jenkins jenkins = Jenkins.getInstance();
+                    if (jenkins != null) {
+                        projectObject = jenkins.getItemByFullName(project, Job.class);
+                    }
                 }
+                return projectObject;
             }
 
             /**
@@ -768,14 +773,14 @@ public class BuildMemory {
             @CheckForNull
             @WithBridgeMethods(AbstractBuild.class)
             public Run getBuild() {
-                if (build != null && project != null) {
-                    Job p = getProject();
-                    if (p != null) {
-                        return p.getBuild(build);
+                if (buildObject == null) {
+                    getProject();
+                    if (build != null && projectObject != null) {
+                        buildObject = projectObject.getBuild(build);
                     }
                 }
 
-                return null;
+                return buildObject;
             }
 
             /**
@@ -786,9 +791,11 @@ public class BuildMemory {
             private void setBuild(Run build) {
                 if (build != null) {
                     this.build = build.getId();
+                    this.buildObject = build;
                     this.startedTimestamp = System.currentTimeMillis();
                 } else {
                     this.build = null;
+                    this.buildObject = null;
                 }
             }
 
@@ -923,6 +930,7 @@ public class BuildMemory {
              * @return true if so.
              * @see #getProject()
              */
+            @Deprecated
             public boolean isProject(String otherName) {
                 if (this.project != null && otherName != null) {
                     return this.project.equals(otherName);
@@ -937,11 +945,13 @@ public class BuildMemory {
              *
              * @param other the other project to check
              * @return true if so.
-             * @deprecated use {@link #isProject(String)} instead
              */
-            @Deprecated
             public boolean isProject(Job other) {
-                return isProject(other.getFullName());
+                getProject();
+                if (projectObject != null) {
+                    return projectObject.equals(other);
+                }
+                return other == null;
             }
         }
     }
