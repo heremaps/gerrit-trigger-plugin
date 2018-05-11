@@ -2340,7 +2340,6 @@ public class GerritTrigger extends Trigger<Job> {
 
             // This step can't be done under the lock, because cancelling the jobs needs a lock on higher level.
             for (ChangeBasedEvent outdatedEvent : outdatedEvents) {
-                logger.debug("Cancelling build for " + outdatedEvent);
                 try {
                     cancelJob(outdatedEvent);
                 } catch (Exception e) {
@@ -2367,10 +2366,10 @@ public class GerritTrigger extends Trigger<Job> {
          *            The event that originally triggered the build.
          */
         private void cancelJob(GerritTriggeredEvent event) {
-            logger.debug("Cancelling build for " + event);
+            logger.debug("Cancelling job {} for {}", job, event);
             try {
                 if (!(job instanceof Queue.Task)) {
-                    logger.error("Error canceling job. The job is not of type Task. Job name: " + job.getName());
+                    logger.error("Error canceling job {} for {}. The job is not of type Task", job.getName(), event);
                     return;
                 }
 
@@ -2441,7 +2440,7 @@ public class GerritTrigger extends Trigger<Job> {
          * @return true if event was still running.
          */
         public boolean remove(ChangeBasedEvent event) {
-            logger.debug("Removing future job " + event.getPatchSet().getNumber());
+            logger.debug("Removing future job {} for the event {},", job, event);
             return runningJobs.remove(event);
         }
 
