@@ -221,7 +221,11 @@ public final class ToGerritRunListener extends RunListener<Run> {
      * @param event   the Gerrit Event which is being checked.
      * @param p   the Gerrit project being checked.
      * @return true if so.
+     *
+     * @deprecated Use {@link #isTriggered(Job, GerritTriggeredEvent)} and
+     *                 {@link #isBuilding(Job, GerritTriggeredEvent)}} instead
      */
+    @Deprecated
     public synchronized boolean isProjectTriggeredAndIncomplete(Job p, GerritTriggeredEvent event) {
         if (!memory.isTriggered(event, p)) {
             return false;
