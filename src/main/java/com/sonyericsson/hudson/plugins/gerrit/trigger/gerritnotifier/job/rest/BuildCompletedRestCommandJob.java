@@ -26,6 +26,7 @@ package com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier.job.rest;
 
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.ChangeBasedEvent;
 import com.sonymobile.tools.gerrit.gerritevents.workers.rest.AbstractRestCommandJob;
+import com.sonyericsson.hudson.plugins.gerrit.trigger.config.Constants;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.config.IGerritHudsonTriggerConfig;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier.GerritMessageProvider;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier.ParameterExpander;
@@ -37,13 +38,11 @@ import com.sonymobile.tools.gerrit.gerritevents.dto.rest.ReviewLabel;
 
 import hudson.model.TaskListener;
 import hudson.security.ACL;
+import hudson.security.ACLContext;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
-import org.acegisecurity.context.SecurityContext;
-import org.acegisecurity.context.SecurityContextHolder;
 
 /**
 * A job for the {@link com.sonymobile.tools.gerrit.gerritevents.GerritSendCommandQueue} that
@@ -78,8 +77,8 @@ public class BuildCompletedRestCommandJob extends AbstractRestCommandJob {
 
     @Override
     protected ReviewInput createReview() {
-        SecurityContext old = ACL.impersonate(ACL.SYSTEM);
-        try {
+        try (ACLContext ctx = ACL.as(ACL.SYSTEM)) {
+            String message = parameterExpander.getBuildCompletedMessage(memoryImprint, listener);
             String message = parameterExpander.getBuildCompletedMessage(memoryImprint, listener).get(0); // FIXME BUG!!!
             Collection<ReviewLabel> scoredLabels = new ArrayList<ReviewLabel>();
             BuildMemory.MemoryImprint.Entry[] entries = memoryImprint.getEntries();
@@ -119,8 +118,6 @@ public class BuildCompletedRestCommandJob extends AbstractRestCommandJob {
 
             return new ReviewInput(message, scoredLabels, commentedFiles).setNotify(notificationLevel)
                 .setTag(Constants.TAG_VALUE);
-        } finally {
-            SecurityContextHolder.setContext(old);
         }
     }
 }

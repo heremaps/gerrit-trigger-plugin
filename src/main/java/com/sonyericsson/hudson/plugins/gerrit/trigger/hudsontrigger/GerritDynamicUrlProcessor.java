@@ -30,6 +30,8 @@ import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.data.FilePat
 import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.data.GerritProject;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.data.Topic;
 
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +55,7 @@ import java.util.regex.Pattern;
  *
  * @author Fredrik Abrahamson &lt;fredrik.abrahamson@sonymobile.com&gt;
  */
+@Restricted(NoExternalUse.class)
 public final class GerritDynamicUrlProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(GerritDynamicUrlProcessor.class);
