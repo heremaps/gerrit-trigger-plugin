@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Gerrit Trigger Plugin
 
 This plugin triggers builds on events from the Gerrit code review system by
@@ -94,3 +95,8 @@ To test in a local Jenkins instance
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
     THE SOFTWARE.
 
+=======
+# gerrit-trigger-plugin
+
+Fork of gerrit trigger plugin to maintain customizations
+>>>>>>> a2719dfc419e40d141822cdf5f115f4d4841644f
